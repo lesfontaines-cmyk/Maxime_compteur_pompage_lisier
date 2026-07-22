@@ -2,7 +2,8 @@
 
 Ce guide explique comment relier l'application **Compteur Lisier** à un tableur
 Google, pour qu'**une nouvelle ligne soit ajoutée automatiquement à chaque
-pompage enregistré**.
+pompage enregistré**, et que le **bordereau PDF signé** soit **archivé dans un
+dossier Google Drive**.
 
 > **Pourquoi un Google Sheet et pas un fichier Excel (.xlsx) ?**
 > Une application web ne peut pas modifier directement un fichier `.xlsx` posé
@@ -103,3 +104,13 @@ Si le fichier `Code.gs` change :
   Grâce à l'anti-doublon, un même pompage n'est jamais compté deux fois.
 - **Récupérer un vrai fichier Excel ?** Dans le tableur : *Fichier → Télécharger
   → Microsoft Excel (.xlsx)*.
+- **Où sont rangés les bordereaux PDF signés ?** Dans un dossier
+  **« Bordereaux pompage lisier »** créé automatiquement **à côté du tableur**
+  (même dossier Drive). La colonne *Bordereau* du tableur contient le lien direct
+  vers chaque PDF. Pour imposer un autre dossier, collez son identifiant dans la
+  variable `FOLDER_ID` en haut du script.
+- **Google demande une autorisation « Voir et gérer les fichiers Google Drive » ?**
+  C'est normal et nécessaire : le script doit pouvoir **enregistrer les PDF**
+  dans votre Drive. Acceptez. (Si vous aviez déjà déployé la version sans PDF,
+  refaites *Déployer → Gérer les déploiements → Nouvelle version* : Google
+  redemandera l'autorisation Drive.)

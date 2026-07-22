@@ -16,7 +16,9 @@
 
 var DATA_SHEET = "Pompages"; // feuille des données visibles
 var ID_SHEET = "_ids";       // feuille technique masquée (anti-doublon)
-var HEADERS = ["Date", "Heure", "Personne", "Volume (L)"];
+var HEADERS = ["Date", "Heure", "Personne", "Volume (L)", "Bordereau"];
+var FOLDER_NAME = "Bordereaux pompage lisier"; // dossier Drive des PDF signés
+var FOLDER_ID = ""; // (facultatif) forcer un dossier précis : coller son identifiant ici
 
 /** Vérification simple depuis un navigateur (bouton « Tester la connexion »). */
 function doGet() {
@@ -57,14 +59,28 @@ function doPost(e) {
       ids.appendRow([id]);
     }
 
+    // Bordereau PDF signé -> enregistrement dans un dossier Drive
+    var fileUrl = "";
+    if (data.pdfBase64 && data.filename) {
+      try {
+        var folder = getOrCreateBordereauxFolder_(ss);
+        var bytes = Utilities.base64Decode(data.pdfBase64);
+        var blob = Utilities.newBlob(bytes, "application/pdf", String(data.filename));
+        var file = folder.createFile(blob);
+        fileUrl = file.getUrl();
+      } catch (e2) {
+        fileUrl = "ERREUR PDF: " + e2;
+      }
+    }
+
     var sheet = getOrCreateDataSheet_(ss);
     var ts = data.ts ? new Date(data.ts) : new Date();
     var tz = ss.getSpreadsheetTimeZone() || "Europe/Paris";
     var dateStr = Utilities.formatDate(ts, tz, "dd/MM/yyyy");
     var heureStr = Utilities.formatDate(ts, tz, "HH:mm");
 
-    sheet.appendRow([dateStr, heureStr, personne, volume]);
-    return json({ ok: true });
+    sheet.appendRow([dateStr, heureStr, personne, volume, fileUrl]);
+    return json({ ok: true, fileUrl: fileUrl });
   } catch (err) {
     return json({ ok: false, error: String(err) });
   } finally {
@@ -102,6 +118,19 @@ function getOrCreateIdSheet_(ss) {
     s.hideSheet();
   }
   return s;
+}
+
+/**
+ * Dossier Drive où sont archivés les bordereaux PDF.
+ * - Si FOLDER_ID est renseigné, on l'utilise.
+ * - Sinon, on crée/retrouve un sous-dossier FOLDER_NAME à côté du tableur.
+ */
+function getOrCreateBordereauxFolder_(ss) {
+  if (FOLDER_ID) return DriveApp.getFolderById(FOLDER_ID);
+  var parents = DriveApp.getFileById(ss.getId()).getParents();
+  var parent = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  var it = parent.getFoldersByName(FOLDER_NAME);
+  return it.hasNext() ? it.next() : parent.createFolder(FOLDER_NAME);
 }
 
 function json(obj) {

@@ -14,6 +14,8 @@
   var STORE = "entries";
   var LS_ENDPOINT = "lisier.endpoint";
   var LS_LASTPERSON = "lisier.lastPerson";
+  var LS_EXP_NOM = "lisier.expNom";
+  var LS_EXP_ADR = "lisier.expAdr";
 
   // -------------------- Petits utilitaires --------------------
   function $(sel) { return document.querySelector(sel); }
@@ -27,6 +29,22 @@
   }
   function getEndpoint() { return (localStorage.getItem(LS_ENDPOINT) || "").trim(); }
   function setEndpoint(v) { localStorage.setItem(LS_ENDPOINT, (v || "").trim()); }
+  function expNom() { return (localStorage.getItem(LS_EXP_NOM) || "Charles Murgat").trim(); }
+  function expAdr() { return (localStorage.getItem(LS_EXP_ADR) || "").trim(); }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function sanitize(s) {
+    return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  function isoStamp(d) {
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+  }
 
   var nfLitres = new Intl.NumberFormat("fr-FR");
   var fmtDate = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -93,7 +111,9 @@
       id: entry.id,
       personne: entry.personne,
       volumeL: entry.volumeL,
-      ts: entry.ts
+      ts: entry.ts,
+      filename: entry.filename || "",
+      pdfBase64: entry.pdfBase64 || ""
     });
     var opts = { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: body, redirect: "follow" };
 
@@ -156,6 +176,13 @@
     el.settings = $("#settings");
     el.endpoint = $("#endpoint");
     el.testResult = $("#testResult");
+    el.expNom = $("#expNom");
+    el.expAdr = $("#expAdr");
+    // signature
+    el.signModal = $("#signModal");
+    el.signRecap = $("#signRecap");
+    el.signPad = $("#signPad");
+    el.signErr = $("#signErr");
   }
 
   var _toastTimer = null;
@@ -204,6 +231,17 @@
       when.className = "history__when";
       when.textContent = whenLabel(e.ts);
       main.appendChild(who); main.appendChild(when);
+
+      if (e.pdfBase64) {
+        var pdfBtn = document.createElement("button");
+        pdfBtn.type = "button";
+        pdfBtn.className = "history__pdf";
+        pdfBtn.textContent = "⤓ Bordereau PDF";
+        pdfBtn.addEventListener("click", (function (entry) {
+          return function () { downloadPdf(entry); };
+        })(e));
+        main.appendChild(pdfBtn);
+      }
 
       var vol = document.createElement("div");
       vol.className = "history__vol";
@@ -257,6 +295,8 @@
     return parseFloat(String(raw).replace(/\s/g, "").replace(",", "."));
   }
 
+  var pendingPump = null; // { personne, volumeL } en attente de signature
+
   function onSubmit(ev) {
     ev.preventDefault();
     var personne = el.personne.value;
@@ -270,40 +310,192 @@
     }
     el.volErr.hidden = true;
 
+    pendingPump = { personne: personne, volumeL: vol };
+    openSign(pendingPump);
+  }
+
+  // -------------------- Signature (pop-up) --------------------
+  var sign = { canvas: null, ctx: null, drawing: false, dirty: false };
+
+  function openSign(p) {
+    var d = new Date();
+    el.signRecap.innerHTML = "<b>" + escapeHtml(p.personne) + "</b> — " +
+      nfLitres.format(p.volumeL) + " litres" +
+      '<div class="sign-recap__meta">' + fmtDate.format(d) + " à " + fmtTime.format(d) + "</div>";
+    el.signErr.hidden = true;
+    el.signModal.hidden = false;
+    if (window.requestAnimationFrame) requestAnimationFrame(setupPad); else setupPad();
+  }
+  function closeSign() { el.signModal.hidden = true; }
+
+  function setupPad() {
+    var c = el.signPad; sign.canvas = c;
+    var rect = c.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    c.width = Math.max(1, Math.round(rect.width * dpr));
+    c.height = Math.max(1, Math.round(rect.height * dpr));
+    var ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#141008";
+    sign.ctx = ctx; sign.dirty = false;
+  }
+  function padPos(e) {
+    var r = sign.canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  function padDown(e) {
+    if (!sign.ctx) return;
+    e.preventDefault(); sign.drawing = true;
+    try { sign.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    var p = padPos(e); sign.ctx.beginPath(); sign.ctx.moveTo(p.x, p.y);
+  }
+  function padMove(e) {
+    if (!sign.drawing) return;
+    e.preventDefault();
+    var p = padPos(e); sign.ctx.lineTo(p.x, p.y); sign.ctx.stroke(); sign.dirty = true;
+    el.signErr.hidden = true;
+  }
+  function padUp() { sign.drawing = false; }
+  function clearPad() {
+    if (!sign.ctx) return;
+    sign.ctx.save(); sign.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    sign.ctx.clearRect(0, 0, sign.canvas.width, sign.canvas.height); sign.ctx.restore();
+    sign.dirty = false; el.signErr.hidden = true;
+  }
+
+  function onSignValidate() {
+    if (!sign.dirty) { el.signErr.hidden = false; return; }
+    if (!pendingPump) { closeSign(); return; }
+    var now = new Date();
     var entry = {
       id: uuid(),
-      personne: personne,
-      volumeL: vol,
-      ts: new Date().toISOString(),
-      synced: false
+      personne: pendingPump.personne,
+      volumeL: pendingPump.volumeL,
+      ts: now.toISOString(),
+      synced: false,
+      signature: sign.canvas.toDataURL("image/png")
     };
+    try {
+      var pdf = buildBordereauPDF(entry);
+      entry.pdfBase64 = pdf.base64;
+      entry.filename = pdf.filename;
+      delete entry.signature; // la signature est déjà dans le PDF
+    } catch (err) {
+      console.error("Génération PDF:", err);
+      toast("Bordereau PDF non généré (voir console).", "err");
+    }
 
-    el.btnSave.disabled = true;
+    closeSign();
     addEntry(entry).then(function () {
-      localStorage.setItem(LS_LASTPERSON, personne);
+      localStorage.setItem(LS_LASTPERSON, entry.personne);
       el.volume.value = "";
+      pendingPump = null;
       vibrate(30);
-      toast("Pompage enregistré ✓", "ok");
-      el.volume.focus();
+      toast("Pompage enregistré et signé ✓", "ok");
       return refreshUI();
     }).then(function () {
       return sendEntry(entry).then(function (st) {
         if (st === "sent") { entry.synced = true; return putEntry(entry).then(refreshUI); }
       });
     }).then(function () {
-      // renvoyer d'éventuels pompages encore en attente
       return flushPending();
     }).catch(function (err) {
       toast("Erreur d'enregistrement.", "err");
       console.error(err);
-    }).then(function () {
-      el.btnSave.disabled = false;
     });
+  }
+
+  // -------------------- Bordereau PDF --------------------
+  function buildBordereauPDF(entry) {
+    if (!(window.jspdf && window.jspdf.jsPDF)) throw new Error("jsPDF indisponible");
+    var JsPDF = window.jspdf.jsPDF;
+    var doc = new JsPDF({ unit: "mm", format: "a4" });
+    var d = new Date(entry.ts);
+    var dateStr = fmtDate.format(d), heureStr = fmtTime.format(d);
+    var W = 210, m = 16, right = W - m, cw = right - m;
+    var nom = expNom() || "Charles Murgat", adr = expAdr();
+    var ref = "N° " + sanitize(entry.id).slice(0, 8).toUpperCase() + "-" + isoStamp(d);
+
+    // En-tête exploitation
+    doc.setFont("times", "bold"); doc.setFontSize(19); doc.setTextColor(20, 16, 8);
+    doc.text(nom.toUpperCase(), W / 2, 20, { align: "center" });
+    doc.setFont("times", "italic"); doc.setFontSize(9); doc.setTextColor(90, 80, 72);
+    doc.text("Pisciculture familiale depuis 1898", W / 2, 25.5, { align: "center" });
+    if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.text(adr, W / 2, 30, { align: "center" }); }
+
+    // Titre
+    doc.setDrawColor(122, 80, 32); doc.setLineWidth(0.6); doc.line(m, 34, right, 34);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(20, 16, 8);
+    doc.text("BORDEREAU DE POMPAGE DE LISIER", W / 2, 42, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.3); doc.setTextColor(120, 110, 100);
+    doc.text("Document interne — mise en page inspirée du CERFA n°12571*01 (bordereau de suivi de déchets)", W / 2, 46.5, { align: "center" });
+
+    var y = 54;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(60, 60, 60);
+    doc.text(ref, right, 52, { align: "right" });
+
+    function fieldBox(numTitle, value, h, big) {
+      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3); doc.rect(m, y, cw, h);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
+      doc.text(numTitle.toUpperCase(), m + 3, y + 5);
+      doc.setTextColor(20, 16, 8);
+      doc.setFont(big ? "times" : "helvetica", big ? "bold" : "normal");
+      doc.setFontSize(big ? 20 : 12);
+      doc.text(String(value), m + 4, y + (big ? 14 : 12.5));
+      y += h + 4;
+    }
+    // La police standard du PDF ne rend pas l'espace fine insécable (U+202F/U+00A0)
+    // utilisée par le format français : on la remplace par une espace normale.
+    var volTxt = nfLitres.format(entry.volumeL).replace(/[\u00a0\u202f\u2009]/g, " ");
+    fieldBox("1 · Exploitation / producteur", nom + (adr ? "  —  " + adr : ""), 16);
+    fieldBox("2 · Nature du produit pompé", "Lisier (effluent d'élevage)", 16);
+    fieldBox("3 · Volume pompé", volTxt + " litres", 18, true);
+
+    // Ligne date + opérateur (deux colonnes)
+    var half = (cw - 4) / 2;
+    doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+    doc.rect(m, y, half, 16); doc.rect(m + half + 4, y, half, 16);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
+    doc.text("4 · DATE ET HEURE DU POMPAGE", m + 3, y + 5);
+    doc.text("5 · OPÉRATEUR", m + half + 7, y + 5);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(20, 16, 8);
+    doc.text(dateStr + " à " + heureStr, m + 4, y + 12.5);
+    doc.text(entry.personne, m + half + 8, y + 12.5);
+    y += 20;
+
+    // Signature
+    var sh = 46;
+    doc.setDrawColor(150, 150, 150); doc.rect(m, y, cw, sh);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
+    doc.text("6 · SIGNATURE DE L'OPÉRATEUR", m + 3, y + 5);
+    if (entry.signature) { try { doc.addImage(entry.signature, "PNG", m + 4, y + 8, 78, 30); } catch (_) {} }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90, 80, 72);
+    doc.text("Signé électroniquement le " + dateStr + " à " + heureStr, right - 3, y + sh - 4, { align: "right" });
+    y += sh + 6;
+
+    // Pied de page
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(130, 130, 130);
+    doc.text("Bordereau généré automatiquement par l'application « Compteur Lisier » — " + nom + ".", W / 2, 289, { align: "center" });
+
+    var dataUri = doc.output("datauristring");
+    var base64 = dataUri.substring(dataUri.indexOf("base64,") + 7);
+    var filename = "Bordereau_lisier_" + isoStamp(d) + "_" + (sanitize(entry.personne) || "operateur") + ".pdf";
+    return { base64: base64, filename: filename };
+  }
+
+  function downloadPdf(entry) {
+    if (!entry.pdfBase64) { toast("Bordereau indisponible.", "err"); return; }
+    var a = document.createElement("a");
+    a.href = "data:application/pdf;base64," + entry.pdfBase64;
+    a.download = entry.filename || ("bordereau-" + entry.id + ".pdf");
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
   // -------------------- Réglages --------------------
   function openSettings() {
     el.endpoint.value = getEndpoint();
+    el.expNom.value = localStorage.getItem(LS_EXP_NOM) || "";
+    el.expAdr.value = localStorage.getItem(LS_EXP_ADR) || "";
     el.testResult.hidden = true;
     el.settings.hidden = false;
   }
@@ -311,6 +503,8 @@
 
   function saveSettings() {
     setEndpoint(el.endpoint.value);
+    localStorage.setItem(LS_EXP_NOM, (el.expNom.value || "").trim());
+    localStorage.setItem(LS_EXP_ADR, (el.expAdr.value || "").trim());
     closeSettings();
     toast("Réglages enregistrés.", "ok");
     flushPending();
@@ -375,6 +569,18 @@
     $("#btnResync").addEventListener("click", function () { toast("Renvoi en cours…"); flushPending(); });
     $("#btnClear").addEventListener("click", clearHistory);
     document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", closeSettings); });
+
+    // Signature (pop-up)
+    $("#signValidate").addEventListener("click", onSignValidate);
+    $("#signClear").addEventListener("click", clearPad);
+    document.querySelectorAll("[data-sign-close]").forEach(function (b) {
+      b.addEventListener("click", function () { closeSign(); pendingPump = null; });
+    });
+    var pad = el.signPad;
+    pad.addEventListener("pointerdown", padDown);
+    pad.addEventListener("pointermove", padMove);
+    pad.addEventListener("pointerup", padUp);
+    pad.addEventListener("pointercancel", padUp);
 
     window.addEventListener("online", function () { updateNet(); flushPending(); });
     window.addEventListener("offline", updateNet);

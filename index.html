@@ -134,6 +134,17 @@
 
       <hr class="sep" />
 
+      <div class="field">
+        <label class="label" for="expNom">Exploitation (sur le bordereau)</label>
+        <input id="expNom" class="input" type="text" placeholder="Charles Murgat" />
+      </div>
+      <div class="field">
+        <label class="label" for="expAdr">Adresse / commune (facultatif)</label>
+        <input id="expAdr" class="input" type="text" placeholder="Commune, code postal" />
+      </div>
+
+      <hr class="sep" />
+
       <button id="btnResync" class="btn-ghost btn-block">Renvoyer les pompages en attente</button>
       <button id="btnClear" class="btn-danger btn-block">Vider l'historique de ce téléphone</button>
       <p class="note note--muted">
@@ -142,9 +153,33 @@
     </div>
   </div>
 
+  <!-- ================= SIGNATURE (modale) ================= -->
+  <div id="signModal" class="modal" hidden>
+    <div class="modal__backdrop" data-sign-close></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+      <div class="sheet-top">
+        <h2 id="signTitle" class="sheet-title">Signature</h2>
+        <button class="sheet-close-btn" data-sign-close aria-label="Annuler">×</button>
+      </div>
+
+      <div class="sign-recap" id="signRecap"></div>
+
+      <p class="label">Signez ci-dessous avec le doigt</p>
+      <div class="sign-pad-wrap">
+        <canvas id="signPad" class="sign-pad"></canvas>
+        <button type="button" id="signClear" class="sign-clear">Effacer</button>
+      </div>
+      <p id="signErr" class="field__error" hidden>Merci de signer avant de valider.</p>
+
+      <button type="button" id="signValidate" class="btn-primary">Valider et enregistrer</button>
+      <p class="note note--muted">Un bordereau PDF signé sera généré, puis archivé dans le dossier Google&nbsp;Drive.</p>
+    </div>
+  </div>
+
   <!-- ================= TOAST ================= -->
   <div id="toast" class="toast" hidden></div>
 
+  <script src="vendor/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

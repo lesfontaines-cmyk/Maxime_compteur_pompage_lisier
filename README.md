@@ -11,10 +11,20 @@ comptabiliser les volumes de **lisier pompés**.
   **Jean-Paul BROCHIER**
 - Champ de saisie du **volume en litres**
 - Bouton **Enregistrer**
-- Chaque enregistrement ajoute **une ligne dans un tableur Google** (sur le
-  Google Drive de l'exploitation)
+- **Signature au doigt** (pop-up) à chaque pompage, puis génération d'un
+  **bordereau PDF signé** — mise en page **inspirée du CERFA n°12571*01** —
+  **archivé dans un dossier Google Drive**
+- Chaque enregistrement ajoute **une ligne dans un tableur Google** (avec le lien
+  vers le bordereau PDF)
 - Page **Historique** conservée **en cache sur chaque téléphone**
-  (pas de synchronisation de l'historique avec le tableur)
+  (pas de synchronisation de l'historique avec le tableur), avec re-téléchargement
+  du bordereau
+
+> ⚠️ **Nature du document** — le bordereau généré est un **document interne**
+> dont la présentation s'inspire du CERFA n°12571*01 (Bordereau de Suivi des
+> Déchets *Dangereux*). Ce n'est **pas** le formulaire officiel : pour un
+> véritable déchet dangereux, la traçabilité légale passe désormais par la
+> plateforme **Trackdéchets** (dématérialisation obligatoire).
 
 ---
 
@@ -23,9 +33,10 @@ comptabiliser les volumes de **lisier pompés**.
 | Fichier | Rôle |
 |---|---|
 | `index.html`, `styles.css`, `app.js` | L'application (interface + logique) |
+| `vendor/jspdf.umd.min.js` | Bibliothèque de génération PDF (embarquée, hors-ligne) |
 | `manifest.webmanifest`, `service-worker.js` | Installation PWA + hors-ligne |
-| `icons/` | Icônes de l'application |
-| `google-apps-script/Code.gs` | Script Google qui ajoute une ligne au tableur |
+| `icons/` | Icônes + logo de marque (`logo-murgat.svg`) |
+| `google-apps-script/Code.gs` | Script Google : ajoute la ligne + archive le PDF sur Drive |
 | `google-apps-script/DEPLOIEMENT.md` | **Guide de mise en place de la synchronisation** |
 
 ---
