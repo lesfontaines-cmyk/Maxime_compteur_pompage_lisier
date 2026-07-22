@@ -1,6 +1,6 @@
 {
-  "name": "Compteur Lisier",
-  "short_name": "Lisier",
+  "name": "Compteur Lisier — Charles Murgat",
+  "short_name": "Lisier CM",
   "description": "Enregistrement des volumes de lisier pompés.",
   "lang": "fr",
   "dir": "ltr",
@@ -8,8 +8,8 @@
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f1d14",
-  "theme_color": "#166E34",
+  "background_color": "#f5f0e8",
+  "theme_color": "#141008",
   "categories": ["productivity", "utilities"],
   "icons": [
     { "src": "icons/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },

@@ -3,13 +3,14 @@
    Met en cache l'app pour un fonctionnement hors-ligne.
    Incrémentez CACHE_VERSION à chaque mise à jour des fichiers.
    ============================================================ */
-var CACHE_VERSION = "lisier-v1";
+var CACHE_VERSION = "lisier-v2";
 var APP_SHELL = [
   ".",
   "index.html",
   "styles.css",
   "app.js",
   "manifest.webmanifest",
+  "icons/logo-murgat.svg",
   "icons/icon.svg",
   "icons/icon-192.png",
   "icons/icon-512.png",

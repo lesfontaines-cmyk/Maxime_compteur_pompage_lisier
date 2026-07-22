@@ -1,7 +1,11 @@
-# 💧 Compteur Lisier
+# 💧 Compteur Lisier — Charles Murgat
 
 Application **PWA** (installable sur téléphone, fonctionne hors-ligne) pour
 comptabiliser les volumes de **lisier pompés**.
+
+> **Identité visuelle** reprise de l'application sœur *Pointage CM* : charte
+> Charles Murgat (crème `#f5f0e8`, or `#7a5020`, brun `#141008`), polices
+> *Cormorant Garamond* + *Jost*, et logo de marque commun.
 
 - Liste déroulante des personnes : **Nathan POINT**, **Raphaël POINT**,
   **Jean-Paul BROCHIER**
@@ -93,5 +97,7 @@ python3 -m http.server 8080
 - **Modifier la liste des personnes** : éditer les `<option>` dans `index.html`.
 - **Changer les colonnes du tableur** : adapter `HEADERS` et l'ordre du
   `appendRow(...)` dans `google-apps-script/Code.gs`.
+- **Couleurs / polices** : variables `--cream`, `--gold`, `--dark`… en haut de
+  `styles.css` ; le logo de marque est dans `icons/logo-murgat.svg`.
 - **Après modification des fichiers** : incrémenter `CACHE_VERSION` dans
   `service-worker.js` pour forcer la mise à jour sur les téléphones.

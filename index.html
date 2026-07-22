@@ -3,74 +3,77 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="Compteur de pompage de lisier — enregistrement des volumes pompés." />
+  <meta name="description" content="Compteur de pompage de lisier — Charles Murgat." />
 
-  <title>Compteur Lisier</title>
+  <title>Compteur Lisier — Charles Murgat</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#166E34" />
+  <meta name="theme-color" content="#141008" />
   <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Lisier" />
+
+  <!-- Polices de la charte -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Bouton réglages (fixe) -->
+  <button id="btnSettings" class="settings-btn" aria-label="Réglages" title="Réglages">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+
   <div class="app">
     <!-- ================= EN-TÊTE ================= -->
-    <header class="topbar">
-      <div class="topbar__title">
-        <img src="icons/icon.svg" alt="" class="topbar__logo" width="28" height="28" />
-        <span>Compteur Lisier</span>
+    <header class="header">
+      <div class="header-logo-wrap">
+        <img src="icons/logo-murgat.svg" alt="Charles Murgat — Pisciculture familiale depuis 1898" class="brand-logo" />
       </div>
-      <div class="topbar__actions">
-        <span id="netBadge" class="net" title="État de la connexion" aria-live="polite"></span>
-        <button id="btnSettings" class="iconbtn" aria-label="Réglages" title="Réglages">⚙️</button>
-      </div>
+      <h1 class="header-title">Compteur&nbsp;Lisier</h1>
+      <div class="header-sub">Suivi des volumes pompés</div>
+      <span id="netBadge" class="net" aria-live="polite"></span>
     </header>
 
     <main class="main">
       <!-- ================= VUE SAISIE ================= -->
       <section id="view-saisie" class="view view--active">
-        <form id="pumpForm" class="card" autocomplete="off" novalidate>
+        <form id="pumpForm" autocomplete="off" novalidate>
           <div class="field">
-            <label for="personne" class="field__label">Qui pompe&nbsp;?</label>
-            <div class="select-wrap">
-              <select id="personne" class="input select" required>
-                <option value="" disabled selected>— Choisir la personne —</option>
-                <option value="Nathan POINT">Nathan POINT</option>
-                <option value="Raphaël POINT">Raphaël POINT</option>
-                <option value="Jean-Paul BROCHIER">Jean-Paul BROCHIER</option>
-              </select>
-            </div>
+            <label for="personne" class="label">Qui pompe&nbsp;?</label>
+            <select id="personne" class="select" required>
+              <option value="" disabled selected>— Choisir la personne —</option>
+              <option value="Nathan POINT">Nathan POINT</option>
+              <option value="Raphaël POINT">Raphaël POINT</option>
+              <option value="Jean-Paul BROCHIER">Jean-Paul BROCHIER</option>
+            </select>
           </div>
 
           <div class="field">
-            <label for="volume" class="field__label">Volume pompé</label>
+            <label for="volume" class="label">Volume pompé</label>
             <div class="input-unit">
-              <input id="volume" class="input input--number" type="text" inputmode="decimal"
+              <input id="volume" class="input-number" type="text" inputmode="decimal"
                      pattern="[0-9]*[.,]?[0-9]*" placeholder="0" required aria-describedby="volErr" />
-              <span class="unit">L</span>
+              <span class="unit">litres</span>
             </div>
             <p id="volErr" class="field__error" hidden>Entrez un volume supérieur à 0.</p>
           </div>
 
-          <button id="btnSave" type="submit" class="btn btn--primary">
-            <span class="btn__label">Enregistrer le pompage</span>
-          </button>
-
-          <p id="syncHint" class="hint" hidden></p>
+          <button id="btnSave" type="submit" class="btn-primary">Enregistrer le pompage</button>
+          <p id="syncHint" class="note" hidden></p>
         </form>
       </section>
 
       <!-- ================= VUE HISTORIQUE ================= -->
       <section id="view-historique" class="view">
-        <div class="summary" id="summary">
+        <div class="summary">
           <div class="summary__cell">
             <span class="summary__num" id="sumCount">0</span>
             <span class="summary__lbl">pompages</span>
@@ -88,7 +91,9 @@
         <ul id="historyList" class="history" aria-live="polite"></ul>
 
         <div id="historyEmpty" class="empty">
-          <div class="empty__icon">💧</div>
+          <div class="empty__icon">
+            <svg width="34" height="44" viewBox="0 0 34 44" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M17 3C13 9 5 20 5 28a12 12 0 0 0 24 0C29 20 21 9 17 3z"/></svg>
+          </div>
           <p>Aucun pompage enregistré pour l'instant.</p>
           <p class="empty__sub">Vos enregistrements apparaîtront ici, en mémoire sur ce téléphone.</p>
         </div>
@@ -97,14 +102,8 @@
 
     <!-- ================= NAVIGATION ================= -->
     <nav class="tabbar">
-      <button class="tab tab--active" data-view="saisie">
-        <span class="tab__icon">✏️</span>
-        <span class="tab__lbl">Saisie</span>
-      </button>
-      <button class="tab" data-view="historique">
-        <span class="tab__icon">📋</span>
-        <span class="tab__lbl">Historique</span>
-      </button>
+      <button class="tab tab--active" data-view="saisie">Saisie</button>
+      <button class="tab" data-view="historique">Historique</button>
     </nav>
   </div>
 
@@ -112,32 +111,34 @@
   <div id="settings" class="modal" hidden>
     <div class="modal__backdrop" data-close></div>
     <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <div class="modal__head">
-        <h2 id="settingsTitle">Réglages</h2>
-        <button class="iconbtn" data-close aria-label="Fermer">✕</button>
+      <div class="sheet-top">
+        <h2 id="settingsTitle" class="sheet-title">Réglages</h2>
+        <button class="sheet-close-btn" data-close aria-label="Fermer">×</button>
       </div>
-      <div class="modal__body">
-        <label for="endpoint" class="field__label">Adresse du script Google (Web App)</label>
+
+      <div class="field">
+        <label for="endpoint" class="label">Adresse du script Google (Web App)</label>
         <input id="endpoint" class="input" type="url" inputmode="url" spellcheck="false"
                placeholder="https://script.google.com/macros/s/.../exec" />
-        <p class="hint">
-          C'est l'adresse qui permet d'ajouter automatiquement chaque pompage dans le
-          tableur Google. Voir le guide <code>google-apps-script/DEPLOIEMENT.md</code>.
-        </p>
-        <div class="modal__row">
-          <button id="btnTest" class="btn btn--ghost">Tester la connexion</button>
-          <button id="btnSaveSettings" class="btn btn--primary">Enregistrer</button>
-        </div>
-        <p id="testResult" class="testresult" hidden></p>
-
-        <hr class="sep" />
-
-        <button id="btnResync" class="btn btn--ghost btn--block">Renvoyer les pompages en attente</button>
-        <button id="btnClear" class="btn btn--danger btn--block">Vider l'historique de ce téléphone</button>
-        <p class="hint hint--muted">
-          L'historique est stocké uniquement sur cet appareil. Le vider n'affecte pas le tableur Google.
+        <p class="note">
+          Permet d'ajouter automatiquement chaque pompage dans le tableur Google.
+          Voir le guide <code>google-apps-script/DEPLOIEMENT.md</code>.
         </p>
       </div>
+
+      <div class="modal__row">
+        <button id="btnTest" class="btn-ghost">Tester la connexion</button>
+        <button id="btnSaveSettings" class="btn-primary">Enregistrer</button>
+      </div>
+      <p id="testResult" class="testresult" hidden></p>
+
+      <hr class="sep" />
+
+      <button id="btnResync" class="btn-ghost btn-block">Renvoyer les pompages en attente</button>
+      <button id="btnClear" class="btn-danger btn-block">Vider l'historique de ce téléphone</button>
+      <p class="note note--muted">
+        L'historique est stocké uniquement sur cet appareil. Le vider n'affecte pas le tableur Google.
+      </p>
     </div>
   </div>
 
