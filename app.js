@@ -144,7 +144,6 @@
   function unsyncedEntries() {
     return allEntries().then(function (list) { return list.filter(function (e) { return !e.synced; }); });
   }
-  function clearEntries() { return tx("readwrite").then(function (os) { return idbReq(os.clear()); }); }
 
   // -------------------- Envoi vers Google Sheet --------------------
   // Le script Apps Script dédoublonne par "id" : on peut donc renvoyer sans
@@ -222,7 +221,6 @@
     el.toast = $("#toast");
     // réglages
     el.settings = $("#settings");
-    el.testResult = $("#testResult");
     el.opNom = $("#opNom");
     el.opRaison = $("#opRaison");
     el.opAdresse = $("#opAdresse");
@@ -574,7 +572,6 @@
     el.opNom.value = opNom();
     el.opRaison.value = opRaison();
     el.opAdresse.value = opAdresse();
-    el.testResult.hidden = true;
     el.opErr.hidden = true;
     _forcedOpen = (forceRequired === true) && !isConfigComplete();
     el.reqBanner.hidden = !_forcedOpen;
@@ -631,41 +628,6 @@
     }
   }
 
-  function testConnection() {
-    var url = getEndpoint();
-    el.testResult.hidden = false;
-    el.testResult.className = "testresult";
-    el.testResult.textContent = "Test en cours…";
-    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) {
-      el.testResult.className = "testresult testresult--err";
-      el.testResult.textContent = "Aucune adresse de script n'est configurée dans l'application.";
-      return;
-    }
-    fetch(url, { method: "GET", redirect: "follow" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (j && j.ok) {
-          el.testResult.className = "testresult testresult--ok";
-          el.testResult.textContent = "✓ Connexion réussie au script.";
-        } else {
-          throw new Error("réponse inattendue");
-        }
-      })
-      .catch(function () {
-        el.testResult.className = "testresult testresult--err";
-        el.testResult.textContent = "Réponse illisible. Vérifiez que le déploiement est en accès « Tout le monde ». L'envoi peut toutefois fonctionner.";
-      });
-  }
-
-  function clearHistory() {
-    if (!window.confirm("Vider l'historique de ce téléphone ? (Le tableur Google n'est pas affecté.)")) return;
-    clearEntries().then(function () {
-      closeSettings();
-      toast("Historique vidé.", "ok");
-      refreshUI();
-    });
-  }
-
   // -------------------- Démarrage --------------------
   function init() {
     cacheEls();
@@ -681,9 +643,6 @@
 
     $("#btnSettings").addEventListener("click", function () { openSettings(false); });
     $("#btnSaveSettings").addEventListener("click", saveSettings);
-    $("#btnTest").addEventListener("click", testConnection);
-    $("#btnResync").addEventListener("click", function () { toast("Renvoi en cours…"); flushPending(); });
-    $("#btnClear").addEventListener("click", clearHistory);
     document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", tryCloseSettings); });
 
     // Mise à jour de la surbrillance des champs obligatoires en direct
