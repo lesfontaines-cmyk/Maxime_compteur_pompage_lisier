@@ -47,13 +47,8 @@
       <section id="view-saisie" class="view view--active">
         <form id="pumpForm" autocomplete="off" novalidate>
           <div class="field">
-            <label for="personne" class="label">Qui pompe&nbsp;?</label>
-            <select id="personne" class="select" required>
-              <option value="" disabled selected>— Choisir la personne —</option>
-              <option value="Nathan POINT">Nathan POINT</option>
-              <option value="Raphaël POINT">Raphaël POINT</option>
-              <option value="Jean-Paul BROCHIER">Jean-Paul BROCHIER</option>
-            </select>
+            <span class="label">Opérateur</span>
+            <div id="opDisplay" class="op-display op-display--empty">— À configurer (appuyez sur ⚙️) —</div>
           </div>
 
           <div class="field">
@@ -116,10 +111,30 @@
         <button class="sheet-close-btn" data-close aria-label="Fermer">×</button>
       </div>
 
-      <p class="note">
-        <b>Les Fils de Charles Murgat</b><br />
-        36 Chem. du Lavoir, 38270 Beaufort
+      <p class="note note--muted" style="margin-top:0">
+        Exploitation : <b>Les Fils de Charles Murgat</b> — 36 Chem. du Lavoir, 38270 Beaufort
       </p>
+
+      <div id="reqBanner" class="req-banner" hidden>
+        ⚠️ Renseignez votre identité avant d'enregistrer un pompage : elle figure sur chaque bordereau.
+      </div>
+
+      <div class="field">
+        <label class="label" for="opNom">Nom de l'opérateur <span class="req">*</span></label>
+        <input id="opNom" class="input" type="text" autocomplete="name" placeholder="Ex. Nathan POINT" />
+      </div>
+      <div class="field">
+        <label class="label" for="opRaison">Raison sociale <span class="req">*</span></label>
+        <input id="opRaison" class="input" type="text" autocomplete="organization" placeholder="Ex. EARL des Fontaines" />
+      </div>
+      <div class="field">
+        <label class="label" for="opAdresse">Adresse <span class="req">*</span></label>
+        <input id="opAdresse" class="input" type="text" autocomplete="street-address" placeholder="N°, rue, code postal, commune" />
+      </div>
+      <p id="opErr" class="field__error" hidden>Ces trois champs sont obligatoires.</p>
+      <button id="btnSaveSettings" class="btn-primary btn-block">Enregistrer</button>
+
+      <hr class="sep" />
 
       <button id="btnTest" class="btn-ghost btn-block">Tester la connexion au tableur</button>
       <p id="testResult" class="testresult" hidden></p>

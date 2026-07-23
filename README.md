@@ -7,8 +7,9 @@ comptabiliser les volumes de **lisier pompés**.
 > Charles Murgat (crème `#f5f0e8`, or `#7a5020`, brun `#141008`), polices
 > *Cormorant Garamond* + *Jost*, et logo de marque commun.
 
-- Liste déroulante des personnes : **Nathan POINT**, **Raphaël POINT**,
-  **Jean-Paul BROCHIER**
+- **Identité de l'opérateur configurée une fois** par téléphone (nom, raison
+  sociale, adresse) — champs **obligatoires** (fenêtre ouverte automatiquement
+  au premier lancement, champs en surbrillance)
 - Champ de saisie du **volume en litres**
 - Bouton **Enregistrer**
 - **Signature au doigt** (pop-up) à chaque pompage, puis génération d'un
@@ -106,7 +107,8 @@ python3 -m http.server 8080
 
 ## ✏️ Personnalisation rapide
 
-- **Modifier la liste des personnes** : éditer les `<option>` dans `index.html`.
+- **Identité de l'opérateur** : saisie dans ⚙️ au 1er lancement (nom, raison
+  sociale, adresse), conservée en cache sur l'appareil.
 - **Changer les colonnes du tableur** : adapter `HEADERS` et l'ordre du
   `appendRow(...)` dans `google-apps-script/Code.gs`.
 - **Couleurs / polices** : variables `--cream`, `--gold`, `--dark`… en haut de

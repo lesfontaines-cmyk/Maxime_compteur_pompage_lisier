@@ -364,6 +364,39 @@ body {
 .toast--ok { background: var(--green); }
 .toast--err { background: var(--red); }
 
+/* ---------- Affichage opérateur (saisie) ---------- */
+.op-display {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  min-height: var(--tap, 54px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.op-display__nom { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--dark); line-height: 1.1; }
+.op-display__soc { font-size: 12px; letter-spacing: .3px; color: var(--light); margin-top: 3px; }
+.op-display--empty { color: var(--light); font-style: italic; font-size: 15px; }
+
+/* ---------- Champs obligatoires ---------- */
+.req { color: var(--red); font-weight: 700; }
+.input--required {
+  border-color: var(--gold);
+  background: #fffaf2;
+  box-shadow: 0 0 0 3px rgba(122, 80, 32, .18);
+}
+.req-banner {
+  background: rgba(184, 134, 11, .14);
+  border: 1px solid rgba(184, 134, 11, .45);
+  color: #7a5a10;
+  border-radius: 6px;
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 16px;
+}
+
 /* ---------- Signature ---------- */
 .sign-recap {
   background: var(--cream2);

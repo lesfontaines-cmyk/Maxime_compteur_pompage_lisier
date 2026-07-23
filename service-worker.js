@@ -3,7 +3,7 @@
    Met en cache l'app pour un fonctionnement hors-ligne.
    Incrémentez CACHE_VERSION à chaque mise à jour des fichiers.
    ============================================================ */
-var CACHE_VERSION = "lisier-v4";
+var CACHE_VERSION = "lisier-v5";
 var APP_SHELL = [
   ".",
   "index.html",
@@ -57,16 +57,19 @@ self.addEventListener("fetch", function (event) {
     return;
   }
 
-  // Ressources statiques : cache d'abord, puis réseau (et mise en cache).
+  // Réseau d'abord (avec mise en cache), repli sur le cache hors-ligne.
+  // Ainsi les appareils reçoivent TOUJOURS la dernière version quand il y a
+  // du réseau — plus de blocage sur une version périmée en cache.
   event.respondWith(
-    caches.match(req).then(function (cached) {
-      if (cached) return cached;
-      return fetch(req).then(function (res) {
-        if (res && res.ok && res.type === "basic") {
-          var copy = res.clone();
-          caches.open(CACHE_VERSION).then(function (c) { c.put(req, copy); });
-        }
-        return res;
+    fetch(req).then(function (res) {
+      if (res && res.ok && res.type === "basic") {
+        var copy = res.clone();
+        caches.open(CACHE_VERSION).then(function (c) { c.put(req, copy); });
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (cached) {
+        return cached || caches.match("index.html");
       });
     })
   );

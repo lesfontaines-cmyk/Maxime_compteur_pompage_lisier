@@ -12,7 +12,9 @@
   var DB_NAME = "compteur-lisier";
   var DB_VERSION = 1;
   var STORE = "entries";
-  var LS_LASTPERSON = "lisier.lastPerson";
+  var LS_OP_NOM = "lisier.opNom";           // nom de l'opérateur (par appareil)
+  var LS_OP_RAISON = "lisier.opRaison";     // raison sociale de l'entreprise de pompage (par appareil)
+  var LS_OP_ADRESSE = "lisier.opAdresse";   // adresse de l'entreprise de pompage (par appareil)
 
   // ============================================================
   //  CONFIGURATION (en dur — réservée à l'administrateur)
@@ -37,6 +39,10 @@
   function getEndpoint() { return (ENDPOINT_URL || "").trim(); }
   function expNom() { return EXPLOITATION_NOM; }
   function expAdr() { return EXPLOITATION_ADR; }
+  function opNom() { return (localStorage.getItem(LS_OP_NOM) || "").trim(); }
+  function opRaison() { return (localStorage.getItem(LS_OP_RAISON) || "").trim(); }
+  function opAdresse() { return (localStorage.getItem(LS_OP_ADRESSE) || "").trim(); }
+  function isConfigComplete() { return !!(opNom() && opRaison() && opAdresse()); }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -166,7 +172,7 @@
   var el = {};
   function cacheEls() {
     el.form = $("#pumpForm");
-    el.personne = $("#personne");
+    el.opDisplay = $("#opDisplay");
     el.volume = $("#volume");
     el.volErr = $("#volErr");
     el.btnSave = $("#btnSave");
@@ -181,6 +187,11 @@
     // réglages
     el.settings = $("#settings");
     el.testResult = $("#testResult");
+    el.opNom = $("#opNom");
+    el.opRaison = $("#opRaison");
+    el.opAdresse = $("#opAdresse");
+    el.opErr = $("#opErr");
+    el.reqBanner = $("#reqBanner");
     // signature
     el.signModal = $("#signModal");
     el.signRecap = $("#signRecap");
@@ -299,10 +310,15 @@
 
   function onSubmit(ev) {
     ev.preventDefault();
-    var personne = el.personne.value;
-    var vol = parseVolume(el.volume.value);
 
-    if (!personne) { toast("Choisissez d'abord la personne.", "err"); el.personne.focus(); return; }
+    // Nom, raison sociale et adresse obligatoires (ils figurent sur le bordereau).
+    if (!isConfigComplete()) {
+      toast("Renseignez d'abord le nom, la raison sociale et l'adresse.", "err");
+      openSettings(true);
+      return;
+    }
+
+    var vol = parseVolume(el.volume.value);
     if (!(vol > 0)) {
       el.volErr.hidden = false;
       el.volume.focus();
@@ -310,7 +326,7 @@
     }
     el.volErr.hidden = true;
 
-    pendingPump = { personne: personne, volumeL: vol };
+    pendingPump = { personne: opNom(), volumeL: vol };
     openSign(pendingPump);
   }
 
@@ -387,7 +403,6 @@
 
     closeSign();
     addEntry(entry).then(function () {
-      localStorage.setItem(LS_LASTPERSON, entry.personne);
       el.volume.value = "";
       pendingPump = null;
       vibrate(30);
@@ -447,17 +462,19 @@
     // La police standard du PDF ne rend pas l'espace fine insécable (U+202F/U+00A0)
     // utilisée par le format français : on la remplace par une espace normale.
     var volTxt = nfLitres.format(entry.volumeL).replace(/[\u00a0\u202f\u2009]/g, " ");
+    var interv = opRaison() + (opAdresse() ? "  —  " + opAdresse() : "");
     fieldBox("1 · Exploitation / producteur", nom + (adr ? "  —  " + adr : ""), 16);
-    fieldBox("2 · Nature du produit pompé", "Lisier (effluent d'élevage)", 16);
-    fieldBox("3 · Volume pompé", volTxt + " litres", 18, true);
+    fieldBox("2 · Intervenant — entreprise de pompage", interv, 16);
+    fieldBox("3 · Nature du produit pompé", "Lisier (effluent d'élevage)", 16);
+    fieldBox("4 · Volume pompé", volTxt + " litres", 18, true);
 
     // Ligne date + opérateur (deux colonnes)
     var half = (cw - 4) / 2;
     doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
     doc.rect(m, y, half, 16); doc.rect(m + half + 4, y, half, 16);
     doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
-    doc.text("4 · DATE ET HEURE DU POMPAGE", m + 3, y + 5);
-    doc.text("5 · OPÉRATEUR", m + half + 7, y + 5);
+    doc.text("5 · DATE ET HEURE DU POMPAGE", m + 3, y + 5);
+    doc.text("6 · OPÉRATEUR", m + half + 7, y + 5);
     doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(20, 16, 8);
     doc.text(dateStr + " à " + heureStr, m + 4, y + 12.5);
     doc.text(entry.personne, m + half + 8, y + 12.5);
@@ -467,7 +484,7 @@
     var sh = 46;
     doc.setDrawColor(150, 150, 150); doc.rect(m, y, cw, sh);
     doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
-    doc.text("6 · SIGNATURE DE L'OPÉRATEUR", m + 3, y + 5);
+    doc.text("7 · SIGNATURE DE L'OPÉRATEUR", m + 3, y + 5);
     if (entry.signature) { try { doc.addImage(entry.signature, "PNG", m + 4, y + 8, 78, 30); } catch (_) {} }
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90, 80, 72);
     doc.text("Signé électroniquement le " + dateStr + " à " + heureStr, right - 3, y + sh - 4, { align: "right" });
@@ -492,11 +509,81 @@
   }
 
   // -------------------- Réglages --------------------
-  function openSettings() {
-    el.testResult.hidden = true;
-    el.settings.hidden = false;
+  var _forcedOpen = false;
+
+  function highlightRequired(on) {
+    [el.opNom, el.opRaison, el.opAdresse].forEach(function (inp) {
+      var empty = !(inp.value || "").trim();
+      inp.classList.toggle("input--required", !!on && empty);
+    });
   }
-  function closeSettings() { el.settings.hidden = true; }
+
+  function firstEmptyField() {
+    if (!opNom()) return el.opNom;
+    if (!opRaison()) return el.opRaison;
+    return el.opAdresse;
+  }
+
+  function openSettings(forceRequired) {
+    el.opNom.value = opNom();
+    el.opRaison.value = opRaison();
+    el.opAdresse.value = opAdresse();
+    el.testResult.hidden = true;
+    el.opErr.hidden = true;
+    _forcedOpen = (forceRequired === true) && !isConfigComplete();
+    el.reqBanner.hidden = !_forcedOpen;
+    highlightRequired(_forcedOpen);
+    el.settings.hidden = false;
+    if (_forcedOpen) { firstEmptyField().focus(); }
+  }
+  function closeSettings() { _forcedOpen = false; el.settings.hidden = true; }
+
+  // Fermeture demandée (croix / fond) : bloquée tant que la config obligatoire
+  // n'est pas complète lors d'une ouverture forcée.
+  function tryCloseSettings() {
+    if (_forcedOpen && !isConfigComplete()) {
+      el.opErr.hidden = false;
+      highlightRequired(true);
+      firstEmptyField().focus();
+      return;
+    }
+    closeSettings();
+  }
+
+  function saveSettings() {
+    var n = (el.opNom.value || "").trim();
+    var r = (el.opRaison.value || "").trim();
+    var a = (el.opAdresse.value || "").trim();
+    if (!n || !r || !a) {
+      el.opErr.hidden = false;
+      highlightRequired(true);
+      (!n ? el.opNom : !r ? el.opRaison : el.opAdresse).focus();
+      return;
+    }
+    localStorage.setItem(LS_OP_NOM, n);
+    localStorage.setItem(LS_OP_RAISON, r);
+    localStorage.setItem(LS_OP_ADRESSE, a);
+    el.opErr.hidden = true;
+    highlightRequired(false);
+    _forcedOpen = false;
+    el.reqBanner.hidden = true;
+    closeSettings();
+    renderOpDisplay();
+    toast("Informations enregistrées.", "ok");
+  }
+
+  function renderOpDisplay() {
+    if (!el.opDisplay) return;
+    if (isConfigComplete()) {
+      el.opDisplay.innerHTML = '<span class="op-display__nom"></span><span class="op-display__soc"></span>';
+      el.opDisplay.querySelector(".op-display__nom").textContent = opNom();
+      el.opDisplay.querySelector(".op-display__soc").textContent = opRaison();
+      el.opDisplay.classList.remove("op-display--empty");
+    } else {
+      el.opDisplay.textContent = "— À configurer (appuyez sur ⚙️) —";
+      el.opDisplay.classList.add("op-display--empty");
+    }
+  }
 
   function testConnection() {
     var url = getEndpoint();
@@ -536,13 +623,7 @@
   // -------------------- Démarrage --------------------
   function init() {
     cacheEls();
-
-    // pré-sélection de la dernière personne
-    var last = localStorage.getItem(LS_LASTPERSON);
-    if (last) {
-      var opt = [].slice.call(el.personne.options).filter(function (o) { return o.value === last; })[0];
-      if (opt) el.personne.value = last;
-    }
+    renderOpDisplay();
 
     el.form.addEventListener("submit", onSubmit);
     el.volume.addEventListener("input", function () { if (parseVolume(el.volume.value) > 0) el.volErr.hidden = true; });
@@ -551,11 +632,20 @@
       t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
     });
 
-    $("#btnSettings").addEventListener("click", openSettings);
+    $("#btnSettings").addEventListener("click", function () { openSettings(false); });
+    $("#btnSaveSettings").addEventListener("click", saveSettings);
     $("#btnTest").addEventListener("click", testConnection);
     $("#btnResync").addEventListener("click", function () { toast("Renvoi en cours…"); flushPending(); });
     $("#btnClear").addEventListener("click", clearHistory);
-    document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", closeSettings); });
+    document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", tryCloseSettings); });
+
+    // Mise à jour de la surbrillance des champs obligatoires en direct
+    [el.opNom, el.opRaison, el.opAdresse].forEach(function (inp) {
+      inp.addEventListener("input", function () {
+        el.opErr.hidden = true;
+        if (!el.reqBanner.hidden) highlightRequired(true);
+      });
+    });
 
     // Signature (pop-up)
     $("#signValidate").addEventListener("click", onSignValidate);
@@ -571,9 +661,16 @@
 
     window.addEventListener("online", function () { updateNet(); flushPending(); });
     window.addEventListener("offline", updateNet);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) flushPending();
+    });
 
     updateNet();
     refreshUI().then(flushPending);
+
+    // Première utilisation : forcer la saisie du nom, de la raison sociale et
+    // de l'adresse (indispensables sur le bordereau).
+    if (!isConfigComplete()) openSettings(true);
 
     // Service worker (hors-ligne)
     if ("serviceWorker" in navigator) {
