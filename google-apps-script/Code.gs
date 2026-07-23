@@ -14,11 +14,17 @@
  * Voir DEPLOIEMENT.md pour la mise en place pas à pas.
  */
 
+// Tableur cible (Google Sheet). Vide = utilise le tableur auquel le script est
+// rattaché. Ici, on vise directement le tableur de l'exploitation.
+var SHEET_ID = "1xPk6AUAe6gHjqDAIR127QpAm0K0CP4dRLzn3XZ40XKk";
+
 var DATA_SHEET = "Pompages"; // feuille des données visibles
 var ID_SHEET = "_ids";       // feuille technique masquée (anti-doublon)
 var HEADERS = ["Date", "Heure", "Personne", "Volume (L)", "Bordereau"];
-var FOLDER_NAME = "Bordereaux pompage lisier"; // dossier Drive des PDF signés
-var FOLDER_ID = ""; // (facultatif) forcer un dossier précis : coller son identifiant ici
+
+// Dossier Drive où sont archivés les bordereaux PDF signés.
+var FOLDER_NAME = "Bordereaux pompage lisier"; // utilisé seulement si FOLDER_ID est vide
+var FOLDER_ID = "1aXLN6VTcW2NHr37qWolw58DRtTXmlbtE"; // dossier « bordereaux » de l'exploitation
 
 /** Vérification simple depuis un navigateur (bouton « Tester la connexion »). */
 function doGet() {
@@ -46,7 +52,7 @@ function doPost(e) {
       return json({ ok: false, error: "invalid" });
     }
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
 
     // Anti-doublon
     if (id) {

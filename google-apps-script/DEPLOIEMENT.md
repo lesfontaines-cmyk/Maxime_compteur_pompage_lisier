@@ -14,20 +14,21 @@ dossier Google Drive**.
 
 ---
 
-## Étape 1 — Créer le tableur
+## Étape 1 — Ouvrir le tableur (déjà prêt)
 
-1. Aller sur https://sheets.google.com (avec le compte Google du Drive de
-   l'exploitation).
-2. Créer un tableur vierge, le nommer par exemple **« Pompage lisier »**.
-   Les colonnes (Date, Heure, Personne, Volume (L)) seront créées
-   automatiquement par le script — rien à préparer.
+Le tableur Google et le dossier des bordereaux existent déjà, et le script
+[`Code.gs`](./Code.gs) est **pré-configuré avec leurs identifiants**
+(`SHEET_ID` et `FOLDER_ID` en haut du fichier) — **rien à modifier dans le
+code**.
 
-## Étape 2 — Ouvrir l'éditeur de script
+1. Ouvrir le **Google Sheet** de l'exploitation (le tableur « pompage lisier »).
+
+## Étape 2 — Coller le script
 
 1. Dans le tableur : menu **Extensions → Apps Script**.
-2. Un nouvel onglet s'ouvre avec un fichier `Code.gs` contenant un exemple.
+2. Un nouvel onglet s'ouvre avec un fichier `Code.gs` d'exemple.
 3. **Tout sélectionner et supprimer**, puis **copier-coller** l'intégralité du
-   fichier [`Code.gs`](./Code.gs) de ce dépôt.
+   fichier [`Code.gs`](./Code.gs) de ce dépôt (déjà configuré, ne rien changer).
 4. Cliquer sur l'icône **💾 Enregistrer** (ou Ctrl/Cmd + S).
 
 ## Étape 3 — Déployer en application web
