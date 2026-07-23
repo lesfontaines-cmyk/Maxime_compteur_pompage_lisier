@@ -4,7 +4,8 @@
  * Reçoit chaque pompage envoyé par l'application PWA et ajoute une ligne
  * dans le tableur (Google Sheet). Se déploie en « Application Web ».
  *
- * Colonnes créées automatiquement : Date | Heure | Personne | Volume (L)
+ * Colonnes créées automatiquement :
+ *   Date | Heure | Entreprise | Intervenant | Volume (L) | Bordereau
  *
  * Anti-doublon : chaque pompage possède un identifiant unique (id). Les
  * identifiants déjà traités sont mémorisés dans une feuille technique masquée
@@ -20,7 +21,7 @@ var SHEET_ID = "1xPk6AUAe6gHjqDAIR127QpAm0K0CP4dRLzn3XZ40XKk";
 
 var DATA_SHEET = "Pompages"; // feuille des données visibles
 var ID_SHEET = "_ids";       // feuille technique masquée (anti-doublon)
-var HEADERS = ["Date", "Heure", "Personne", "Volume (L)", "Bordereau"];
+var HEADERS = ["Date", "Heure", "Entreprise", "Intervenant", "Volume (L)", "Bordereau"];
 
 // Dossier Drive où sont archivés les bordereaux PDF signés.
 var FOLDER_NAME = "Bordereaux pompage lisier"; // utilisé seulement si FOLDER_ID est vide
@@ -45,6 +46,7 @@ function doPost(e) {
     }
     var data = JSON.parse(e.postData.contents);
     var personne = String(data.personne || "").trim();
+    var entreprise = String(data.entreprise || "").trim();
     var volume = Number(data.volumeL);
     var id = String(data.id || "").trim();
 
@@ -85,7 +87,7 @@ function doPost(e) {
     var dateStr = Utilities.formatDate(ts, tz, "dd/MM/yyyy");
     var heureStr = Utilities.formatDate(ts, tz, "HH:mm");
 
-    sheet.appendRow([dateStr, heureStr, personne, volume, fileUrl]);
+    sheet.appendRow([dateStr, heureStr, entreprise, personne, volume, fileUrl]);
     return json({ ok: true, fileUrl: fileUrl });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -111,8 +113,28 @@ function getOrCreateDataSheet_(ss) {
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
     sheet.setFrozenRows(1);
     sheet.setColumnWidths(1, HEADERS.length, 130);
+  } else {
+    migrateHeaders_(sheet);
   }
   return sheet;
+}
+
+/**
+ * Migration douce des tableurs créés avant l'ajout de la colonne
+ * « Entreprise ». On insère la colonne « Entreprise » juste avant l'ancienne
+ * colonne « Personne » (renommée « Intervenant ») : les lignes déjà présentes
+ * restent alignées, avec une entreprise vide pour l'historique.
+ */
+function migrateHeaders_(sheet) {
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (header.indexOf("Entreprise") !== -1) return; // déjà à jour
+  var pIdx = header.indexOf("Personne");
+  if (pIdx === -1) return; // format inattendu : on n'y touche pas
+  sheet.insertColumnBefore(pIdx + 1);
+  sheet.getRange(1, pIdx + 1).setValue("Entreprise");
+  sheet.getRange(1, pIdx + 2).setValue("Intervenant"); // ex-« Personne »
+  sheet.setColumnWidth(pIdx + 1, 130);
+  sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold");
 }
 
 /** Récupère (ou crée) la feuille technique masquée des identifiants. */

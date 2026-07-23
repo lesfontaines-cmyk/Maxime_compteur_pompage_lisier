@@ -58,6 +58,41 @@
     return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
   }
 
+  // -------------------- Logo (rasterisé pour le PDF) --------------------
+  // jsPDF n'insère pas de SVG : on rastérise le logo de l'entreprise en PNG une
+  // fois au démarrage, puis on l'imprime en en-tête de chaque bordereau.
+  var LOGO_URL = "icons/logo-murgat.svg";
+  var LOGO_ASPECT = 243 / 38; // rapport largeur/hauteur (viewBox du logo)
+  var _logoPng = null;        // data URL PNG du logo, prête pour jsPDF
+
+  function preloadLogo() {
+    try {
+      fetch(LOGO_URL).then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+        .then(function (svg) {
+          // Un SVG sans width/height se rend à une taille par défaut (voire nulle)
+          // une fois dessiné sur un canvas : on force une taille explicite.
+          var w = 1200, h = Math.round(w / LOGO_ASPECT);
+          if (!/<svg[^>]*\bwidth=/.test(svg)) {
+            svg = svg.replace(/<svg\b/, '<svg width="' + w + '" height="' + h + '"');
+          }
+          var blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+          var url = URL.createObjectURL(blob);
+          var img = new Image();
+          img.onload = function () {
+            try {
+              var cv = document.createElement("canvas");
+              cv.width = w; cv.height = h;
+              cv.getContext("2d").drawImage(img, 0, 0, w, h);
+              _logoPng = cv.toDataURL("image/png");
+            } catch (_) {}
+            URL.revokeObjectURL(url);
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); };
+          img.src = url;
+        }).catch(function () {});
+    } catch (_) {}
+  }
+
   var nfLitres = new Intl.NumberFormat("fr-FR");
   var fmtDate = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   var fmtTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -109,7 +144,6 @@
   function unsyncedEntries() {
     return allEntries().then(function (list) { return list.filter(function (e) { return !e.synced; }); });
   }
-  function clearEntries() { return tx("readwrite").then(function (os) { return idbReq(os.clear()); }); }
 
   // -------------------- Envoi vers Google Sheet --------------------
   // Le script Apps Script dédoublonne par "id" : on peut donc renvoyer sans
@@ -122,6 +156,7 @@
     var body = JSON.stringify({
       id: entry.id,
       personne: entry.personne,
+      entreprise: entry.entreprise || "",
       volumeL: entry.volumeL,
       ts: entry.ts,
       filename: entry.filename || "",
@@ -186,7 +221,6 @@
     el.toast = $("#toast");
     // réglages
     el.settings = $("#settings");
-    el.testResult = $("#testResult");
     el.opNom = $("#opNom");
     el.opRaison = $("#opRaison");
     el.opAdresse = $("#opAdresse");
@@ -386,6 +420,7 @@
     var entry = {
       id: uuid(),
       personne: pendingPump.personne,
+      entreprise: opRaison(),
       volumeL: pendingPump.volumeL,
       ts: now.toISOString(),
       synced: false,
@@ -431,12 +466,21 @@
     var nom = expNom() || "Charles Murgat", adr = expAdr();
     var ref = "N° " + sanitize(entry.id).slice(0, 8).toUpperCase() + "-" + isoStamp(d);
 
-    // En-tête exploitation
-    doc.setFont("times", "bold"); doc.setFontSize(19); doc.setTextColor(20, 16, 8);
-    doc.text(nom.toUpperCase(), W / 2, 20, { align: "center" });
-    doc.setFont("times", "italic"); doc.setFontSize(9); doc.setTextColor(90, 80, 72);
-    doc.text("Pisciculture familiale depuis 1898", W / 2, 25.5, { align: "center" });
-    if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.text(adr, W / 2, 30, { align: "center" }); }
+    // En-tête exploitation — logo de l'entreprise (si prêt) + nom + adresse.
+    if (_logoPng) {
+      var lw = 66, lh = lw / LOGO_ASPECT;                 // largeur fixe, hauteur proportionnelle
+      try { doc.addImage(_logoPng, "PNG", (W - lw) / 2, 11, lw, lh); } catch (_) {}
+      doc.setFont("times", "bold"); doc.setFontSize(12); doc.setTextColor(20, 16, 8);
+      doc.text(nom.toUpperCase(), W / 2, 26, { align: "center" });
+      if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 72); doc.text(adr, W / 2, 30.5, { align: "center" }); }
+    } else {
+      // Repli texte si le logo n'a pas pu être chargé/rastérisé.
+      doc.setFont("times", "bold"); doc.setFontSize(19); doc.setTextColor(20, 16, 8);
+      doc.text(nom.toUpperCase(), W / 2, 20, { align: "center" });
+      doc.setFont("times", "italic"); doc.setFontSize(9); doc.setTextColor(90, 80, 72);
+      doc.text("Pisciculture familiale depuis 1898", W / 2, 25.5, { align: "center" });
+      if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.text(adr, W / 2, 30, { align: "center" }); }
+    }
 
     // Titre
     doc.setDrawColor(122, 80, 32); doc.setLineWidth(0.6); doc.line(m, 34, right, 34);
@@ -528,7 +572,6 @@
     el.opNom.value = opNom();
     el.opRaison.value = opRaison();
     el.opAdresse.value = opAdresse();
-    el.testResult.hidden = true;
     el.opErr.hidden = true;
     _forcedOpen = (forceRequired === true) && !isConfigComplete();
     el.reqBanner.hidden = !_forcedOpen;
@@ -585,45 +628,11 @@
     }
   }
 
-  function testConnection() {
-    var url = getEndpoint();
-    el.testResult.hidden = false;
-    el.testResult.className = "testresult";
-    el.testResult.textContent = "Test en cours…";
-    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) {
-      el.testResult.className = "testresult testresult--err";
-      el.testResult.textContent = "Aucune adresse de script n'est configurée dans l'application.";
-      return;
-    }
-    fetch(url, { method: "GET", redirect: "follow" })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (j && j.ok) {
-          el.testResult.className = "testresult testresult--ok";
-          el.testResult.textContent = "✓ Connexion réussie au script.";
-        } else {
-          throw new Error("réponse inattendue");
-        }
-      })
-      .catch(function () {
-        el.testResult.className = "testresult testresult--err";
-        el.testResult.textContent = "Réponse illisible. Vérifiez que le déploiement est en accès « Tout le monde ». L'envoi peut toutefois fonctionner.";
-      });
-  }
-
-  function clearHistory() {
-    if (!window.confirm("Vider l'historique de ce téléphone ? (Le tableur Google n'est pas affecté.)")) return;
-    clearEntries().then(function () {
-      closeSettings();
-      toast("Historique vidé.", "ok");
-      refreshUI();
-    });
-  }
-
   // -------------------- Démarrage --------------------
   function init() {
     cacheEls();
     renderOpDisplay();
+    preloadLogo();
 
     el.form.addEventListener("submit", onSubmit);
     el.volume.addEventListener("input", function () { if (parseVolume(el.volume.value) > 0) el.volErr.hidden = true; });
@@ -634,9 +643,6 @@
 
     $("#btnSettings").addEventListener("click", function () { openSettings(false); });
     $("#btnSaveSettings").addEventListener("click", saveSettings);
-    $("#btnTest").addEventListener("click", testConnection);
-    $("#btnResync").addEventListener("click", function () { toast("Renvoi en cours…"); flushPending(); });
-    $("#btnClear").addEventListener("click", clearHistory);
     document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", tryCloseSettings); });
 
     // Mise à jour de la surbrillance des champs obligatoires en direct
