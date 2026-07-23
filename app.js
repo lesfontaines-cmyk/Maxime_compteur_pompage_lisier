@@ -220,6 +220,12 @@
     el.sumTotal = $("#sumTotal");
     el.sumToday = $("#sumToday");
     el.toast = $("#toast");
+    // installation (PWA)
+    el.installBanner = $("#installBanner");
+    el.installBannerSub = $("#installBannerSub");
+    el.installBannerBtn = $("#installBannerBtn");
+    el.installBannerClose = $("#installBannerClose");
+    el.iosInstallModal = $("#iosInstallModal");
     // réglages
     el.settings = $("#settings");
     el.opNom = $("#opNom");
@@ -630,11 +636,78 @@
     }
   }
 
+  // -------------------- Installation (PWA) --------------------
+  var _deferredInstall = null;
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+  }
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  }
+  function isIOSSafari() {
+    // Sur iPhone, seul Safari propose « Sur l'écran d'accueil ».
+    var ua = navigator.userAgent;
+    return isIOS() && /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua);
+  }
+  function installDismissed() { return localStorage.getItem("lisier.installDismissed") === "1"; }
+
+  function hideInstallBanner() { if (el.installBanner) el.installBanner.hidden = true; }
+  function showInstallBanner(kind) {
+    if (!el.installBanner || installDismissed()) return;
+    el.installBannerSub.textContent = (kind === "ios")
+      ? "Ajoutez-la à votre écran d'accueil en 3 étapes."
+      : "Accès direct depuis l'écran d'accueil, même hors-ligne.";
+    el.installBanner.hidden = false;
+  }
+  function openIosInstall() { if (el.iosInstallModal) el.iosInstallModal.hidden = false; }
+  function closeIosInstall() { if (el.iosInstallModal) el.iosInstallModal.hidden = true; }
+
+  function setupInstall() {
+    if (isStandalone()) { hideInstallBanner(); return; } // déjà installée : rien à proposer
+
+    // Android / Chrome : on capte l'invite native et on l'offre via le bouton.
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      _deferredInstall = e;
+      showInstallBanner("prompt");
+    });
+    window.addEventListener("appinstalled", function () {
+      _deferredInstall = null;
+      hideInstallBanner();
+      toast("Application installée ✓", "ok");
+    });
+
+    // iPhone (Safari) : pas d'invite native -> on montre les instructions.
+    if (isIOSSafari()) showInstallBanner("ios");
+
+    el.installBannerBtn.addEventListener("click", function () {
+      if (_deferredInstall) {
+        _deferredInstall.prompt();
+        _deferredInstall.userChoice.then(function (res) {
+          if (res && res.outcome === "accepted") hideInstallBanner();
+          _deferredInstall = null;
+        });
+      } else {
+        openIosInstall(); // iPhone (ou repli) : afficher la marche à suivre
+      }
+    });
+    el.installBannerClose.addEventListener("click", function () {
+      localStorage.setItem("lisier.installDismissed", "1");
+      hideInstallBanner();
+    });
+    document.querySelectorAll("[data-ios-close]").forEach(function (b) {
+      b.addEventListener("click", closeIosInstall);
+    });
+  }
+
   // -------------------- Démarrage --------------------
   function init() {
     cacheEls();
     renderOpDisplay();
     preloadLogo();
+    setupInstall();
 
     el.form.addEventListener("submit", onSubmit);
     el.volume.addEventListener("input", function () { if (parseVolume(el.volume.value) > 0) el.volErr.hidden = true; });

@@ -42,6 +42,17 @@
       <span id="netBadge" class="net" aria-live="polite"></span>
     </header>
 
+    <!-- ===== Bandeau d'installation (masqué si déjà installée) ===== -->
+    <div id="installBanner" class="install-banner" hidden>
+      <span class="install-banner__icon" aria-hidden="true">📲</span>
+      <div class="install-banner__text">
+        <b>Installer l'application</b>
+        <span id="installBannerSub">Accès direct depuis l'écran d'accueil, même hors-ligne.</span>
+      </div>
+      <button id="installBannerBtn" type="button" class="install-banner__btn">Installer</button>
+      <button id="installBannerClose" type="button" class="install-banner__close" aria-label="Masquer">×</button>
+    </div>
+
     <main class="main">
       <!-- ================= VUE SAISIE ================= -->
       <section id="view-saisie" class="view view--active">
@@ -156,6 +167,23 @@
 
       <button type="button" id="signValidate" class="btn-primary">Valider et enregistrer</button>
       <p class="note note--muted">Un bordereau PDF signé sera généré, puis archivé dans le dossier Google&nbsp;Drive.</p>
+    </div>
+  </div>
+
+  <!-- ================= INSTALLATION iPhone (modale) ================= -->
+  <div id="iosInstallModal" class="modal" hidden>
+    <div class="modal__backdrop" data-ios-close></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="iosInstallTitle">
+      <div class="sheet-top">
+        <h2 id="iosInstallTitle" class="sheet-title">Installer sur iPhone</h2>
+        <button class="sheet-close-btn" data-ios-close aria-label="Fermer">×</button>
+      </div>
+      <ol class="ios-steps">
+        <li>Dans <b>Safari</b>, appuyez sur <b>Partager</b> <span class="ios-share" aria-hidden="true">↑</span> (en bas de l'écran).</li>
+        <li>Faites défiler puis choisissez <b>« Sur l'écran d'accueil »</b>.</li>
+        <li>Appuyez sur <b>Ajouter</b> — l'icône 💧 apparaît comme une vraie application.</li>
+      </ol>
+      <p class="note note--muted">Cette option n'existe que dans <b>Safari</b> (pas dans Chrome sur iPhone).</p>
     </div>
   </div>
 
