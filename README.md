@@ -61,7 +61,8 @@ L'application est faite de simples fichiers statiques. Le plus simple :
 ### 2. Relier le tableur Google
 
 Suivre le guide **[`google-apps-script/DEPLOIEMENT.md`](google-apps-script/DEPLOIEMENT.md)**.
-À la fin, on colle l'adresse du script dans l'application via l'icône **⚙️**.
+À la fin, l'adresse du script est inscrite **en dur** dans `app.js` (constante
+`ENDPOINT_URL`) — l'opérateur n'a rien à configurer.
 
 ### 3. Installer l'application sur les téléphones
 

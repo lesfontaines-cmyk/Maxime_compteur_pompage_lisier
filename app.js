@@ -12,10 +12,17 @@
   var DB_NAME = "compteur-lisier";
   var DB_VERSION = 1;
   var STORE = "entries";
-  var LS_ENDPOINT = "lisier.endpoint";
   var LS_LASTPERSON = "lisier.lastPerson";
-  var LS_EXP_NOM = "lisier.expNom";
-  var LS_EXP_ADR = "lisier.expAdr";
+
+  // ============================================================
+  //  CONFIGURATION (en dur — réservée à l'administrateur)
+  //  L'opérateur n'a rien à régler dans l'application.
+  // ============================================================
+  // Adresse « /exec » du script Google (à renseigner après déploiement du script).
+  var ENDPOINT_URL = "";
+  // Identité de l'exploitation, imprimée en en-tête du bordereau PDF.
+  var EXPLOITATION_NOM = "Les Fils de Charles Murgat";
+  var EXPLOITATION_ADR = "36 Chem. du Lavoir, 38270 Beaufort";
 
   // -------------------- Petits utilitaires --------------------
   function $(sel) { return document.querySelector(sel); }
@@ -27,10 +34,9 @@
     var h = [].map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
     return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
   }
-  function getEndpoint() { return (localStorage.getItem(LS_ENDPOINT) || "").trim(); }
-  function setEndpoint(v) { localStorage.setItem(LS_ENDPOINT, (v || "").trim()); }
-  function expNom() { return (localStorage.getItem(LS_EXP_NOM) || "Charles Murgat").trim(); }
-  function expAdr() { return (localStorage.getItem(LS_EXP_ADR) || "").trim(); }
+  function getEndpoint() { return (ENDPOINT_URL || "").trim(); }
+  function expNom() { return EXPLOITATION_NOM; }
+  function expAdr() { return EXPLOITATION_ADR; }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -174,10 +180,7 @@
     el.toast = $("#toast");
     // réglages
     el.settings = $("#settings");
-    el.endpoint = $("#endpoint");
     el.testResult = $("#testResult");
-    el.expNom = $("#expNom");
-    el.expAdr = $("#expAdr");
     // signature
     el.signModal = $("#signModal");
     el.signRecap = $("#signRecap");
@@ -270,10 +273,7 @@
 
   function renderSyncHint(list) {
     var pending = list.filter(function (e) { return !e.synced; }).length;
-    if (!getEndpoint()) {
-      el.syncHint.hidden = false;
-      el.syncHint.textContent = "⚠️ Synchronisation non configurée — appuyez sur ⚙️ pour relier le tableur Google.";
-    } else if (pending > 0) {
+    if (pending > 0) {
       el.syncHint.hidden = false;
       el.syncHint.textContent = "⏳ " + pending + " pompage(s) en attente d'envoi.";
     } else {
@@ -493,31 +493,19 @@
 
   // -------------------- Réglages --------------------
   function openSettings() {
-    el.endpoint.value = getEndpoint();
-    el.expNom.value = localStorage.getItem(LS_EXP_NOM) || "";
-    el.expAdr.value = localStorage.getItem(LS_EXP_ADR) || "";
     el.testResult.hidden = true;
     el.settings.hidden = false;
   }
   function closeSettings() { el.settings.hidden = true; }
 
-  function saveSettings() {
-    setEndpoint(el.endpoint.value);
-    localStorage.setItem(LS_EXP_NOM, (el.expNom.value || "").trim());
-    localStorage.setItem(LS_EXP_ADR, (el.expAdr.value || "").trim());
-    closeSettings();
-    toast("Réglages enregistrés.", "ok");
-    flushPending();
-  }
-
   function testConnection() {
-    var url = (el.endpoint.value || "").trim();
+    var url = getEndpoint();
     el.testResult.hidden = false;
     el.testResult.className = "testresult";
     el.testResult.textContent = "Test en cours…";
     if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) {
       el.testResult.className = "testresult testresult--err";
-      el.testResult.textContent = "L'adresse doit commencer par https://script.google.com/…";
+      el.testResult.textContent = "Aucune adresse de script n'est configurée dans l'application.";
       return;
     }
     fetch(url, { method: "GET", redirect: "follow" })
@@ -564,7 +552,6 @@
     });
 
     $("#btnSettings").addEventListener("click", openSettings);
-    $("#btnSaveSettings").addEventListener("click", saveSettings);
     $("#btnTest").addEventListener("click", testConnection);
     $("#btnResync").addEventListener("click", function () { toast("Renvoi en cours…"); flushPending(); });
     $("#btnClear").addEventListener("click", clearHistory);

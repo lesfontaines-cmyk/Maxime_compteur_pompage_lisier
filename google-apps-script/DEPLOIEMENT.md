@@ -65,15 +65,22 @@ https://script.google.com/macros/s/AKfycb.../exec
 
 **Copier cette adresse.**
 
-## Étape 6 — Configurer l'application
+## Étape 6 — Inscrire l'adresse dans l'application
 
-1. Ouvrir l'application **Compteur Lisier** sur le téléphone (ou dans le
-   navigateur).
-2. Appuyer sur l'icône **⚙️** en haut à droite.
-3. **Coller l'adresse** dans le champ « Adresse du script Google ».
-4. Appuyer sur **Tester la connexion** → le message « ✓ Connexion réussie »
-   doit apparaître.
-5. Appuyer sur **Enregistrer**.
+L'adresse du script est **écrite en dur dans le code** (l'opérateur n'a rien à
+configurer). Il suffit de renseigner **une seule fois** la constante
+`ENDPOINT_URL`, tout en haut du fichier [`app.js`](../app.js) :
+
+```js
+var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycb.../exec";
+```
+
+Puis pousser la modification (elle se déploiera automatiquement sur le site).
+En pratique : **communiquez l'adresse `/exec` à l'administrateur du projet**, qui
+l'inscrira dans `app.js`.
+
+> Une fois l'adresse en place, le bouton **⚙️ → Tester la connexion au tableur**
+> de l'application doit répondre « ✓ Connexion réussie ».
 
 ## Étape 7 — Vérifier
 

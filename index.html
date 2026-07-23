@@ -112,36 +112,17 @@
     <div class="modal__backdrop" data-close></div>
     <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <div class="sheet-top">
-        <h2 id="settingsTitle" class="sheet-title">Réglages</h2>
+        <h2 id="settingsTitle" class="sheet-title">Options</h2>
         <button class="sheet-close-btn" data-close aria-label="Fermer">×</button>
       </div>
 
-      <div class="field">
-        <label for="endpoint" class="label">Adresse du script Google (Web App)</label>
-        <input id="endpoint" class="input" type="url" inputmode="url" spellcheck="false"
-               placeholder="https://script.google.com/macros/s/.../exec" />
-        <p class="note">
-          Permet d'ajouter automatiquement chaque pompage dans le tableur Google.
-          Voir le guide <code>google-apps-script/DEPLOIEMENT.md</code>.
-        </p>
-      </div>
+      <p class="note">
+        <b>Les Fils de Charles Murgat</b><br />
+        36 Chem. du Lavoir, 38270 Beaufort
+      </p>
 
-      <div class="modal__row">
-        <button id="btnTest" class="btn-ghost">Tester la connexion</button>
-        <button id="btnSaveSettings" class="btn-primary">Enregistrer</button>
-      </div>
+      <button id="btnTest" class="btn-ghost btn-block">Tester la connexion au tableur</button>
       <p id="testResult" class="testresult" hidden></p>
-
-      <hr class="sep" />
-
-      <div class="field">
-        <label class="label" for="expNom">Exploitation (sur le bordereau)</label>
-        <input id="expNom" class="input" type="text" placeholder="Charles Murgat" />
-      </div>
-      <div class="field">
-        <label class="label" for="expAdr">Adresse / commune (facultatif)</label>
-        <input id="expAdr" class="input" type="text" placeholder="Commune, code postal" />
-      </div>
 
       <hr class="sep" />
 
