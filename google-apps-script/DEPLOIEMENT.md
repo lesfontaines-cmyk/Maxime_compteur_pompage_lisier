@@ -103,19 +103,30 @@ qu'un écran, c'est le script qui vérifie l'identité avant toute écriture. Le
 comptes sont stockés dans une feuille technique masquée **« Utilisateurs »**
 (mots de passe **hachés + salés**, jamais en clair).
 
-### Créer un accès pour quelqu'un
+### Créer un accès pour quelqu'un — le plus simple : le menu
 
-1. Dans l'éditeur Apps Script, sélectionner la fonction **`inviteUser`** dans la
-   liste déroulante en haut, puis modifier l'appel de test ou utiliser la console.
-   Le plus simple : cliquer sur **Exécuter** après avoir temporairement écrit,
-   en bas du fichier, `inviteUser("prenom.nom@exemple.fr")` — ou lancer la
-   fonction et saisir l'email demandé.
-2. La personne reçoit **un email** avec un lien. En l'ouvrant **depuis son
+Un menu **« Compteur Lisier »** apparaît directement dans la barre de menus du
+**tableur** (à côté de *Fichier, Édition…*). Depuis là, aucune ligne de code à
+écrire :
+
+1. Ouvrir le **tableur** (pas l'éditeur de code). *Si le menu n'apparaît pas,
+   recharger la page du tableur : il se crée à l'ouverture.*
+2. Menu **Compteur Lisier → ➕ Inviter un utilisateur…**
+3. Taper l'**adresse email** dans la fenêtre qui s'ouvre, valider.
+4. La personne reçoit **un email** avec un lien. En l'ouvrant **depuis son
    téléphone**, l'application lui propose de **choisir son mot de passe et son
    identité** (nom, raison sociale, adresse — qui figureront sur ses bordereaux).
-3. C'est tout : elle peut désormais se connecter.
 
-### Autres fonctions d'administration (à lancer depuis l'éditeur)
+> La **première** utilisation du menu demande une autorisation Google (envoi
+> d'emails) : accepter.
+
+Le même menu propose aussi **🔑 Réinitialiser un mot de passe…**,
+**🚫 Désactiver un accès…** et **👥 Lister les utilisateurs**.
+
+### Équivalent en ligne de commande (éditeur Apps Script)
+
+Si tu préfères l'éditeur, les mêmes actions existent en fonctions (écrire l'appel
+en bas du fichier puis **Exécuter**) :
 
 | Fonction | Effet |
 |---|---|

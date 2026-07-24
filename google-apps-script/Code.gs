@@ -279,6 +279,73 @@ function adminSS_() {
   return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
 }
 
+// ------------------------------------------------------------------
+//  MENU DANS LE TABLEUR (pour saisir l'email sans toucher au code)
+// ------------------------------------------------------------------
+/** Ajoute le menu « Compteur Lisier » à l'ouverture du tableur. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Compteur Lisier")
+    .addItem("➕ Inviter un utilisateur…", "promptInviteUser")
+    .addItem("🔑 Réinitialiser un mot de passe…", "promptResetPassword")
+    .addItem("🚫 Désactiver un accès…", "promptDeactivateUser")
+    .addSeparator()
+    .addItem("👥 Lister les utilisateurs", "menuListUsers")
+    .addToUi();
+}
+
+function promptInviteUser() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt("Inviter un utilisateur",
+    "Adresse email du nouvel utilisateur :", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  try {
+    inviteUser(res.getResponseText());
+    ui.alert("Invitation envoyée",
+      "Un email d'inscription a été envoyé à :\n" + lc_(res.getResponseText()) +
+      "\n\nElle doit ouvrir le lien depuis son téléphone pour choisir son mot de passe.",
+      ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Erreur", String(e), ui.ButtonSet.OK);
+  }
+}
+
+function promptResetPassword() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt("Réinitialiser un mot de passe",
+    "Adresse email de l'utilisateur :", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  try {
+    resetUserPassword(res.getResponseText());
+    ui.alert("Lien envoyé", "Un lien de réinitialisation a été envoyé à :\n" + lc_(res.getResponseText()), ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Erreur", String(e), ui.ButtonSet.OK);
+  }
+}
+
+function promptDeactivateUser() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt("Désactiver un accès",
+    "Adresse email à désactiver (l'utilisateur ne pourra plus se connecter) :", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  try {
+    deactivateUser(res.getResponseText());
+    ui.alert("Accès désactivé", lc_(res.getResponseText()) + " ne peut plus se connecter.", ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Erreur", String(e), ui.ButtonSet.OK);
+  }
+}
+
+function menuListUsers() {
+  var ui = SpreadsheetApp.getUi();
+  var sheet = usersSheet_(adminSS_());
+  var last = sheet.getLastRow();
+  if (last < 2) { ui.alert("Utilisateurs", "Aucun utilisateur pour l'instant.", ui.ButtonSet.OK); return; }
+  var all = sheet.getRange(2, 1, last - 1, USERS_HEADERS.length).getValues();
+  var lines = all.map(function (v) { return "• " + getField_(v, "Email") + " — " + getField_(v, "Statut"); });
+  ui.alert("Utilisateurs (" + lines.length + ")", lines.join("\n"), ui.ButtonSet.OK);
+}
+
 function sendSignupEmail_(email, link, isReset) {
   var subject = isReset
     ? "Réinitialisation de votre accès — Compteur Lisier"
