@@ -346,6 +346,35 @@ function menuListUsers() {
   ui.alert("Utilisateurs (" + lines.length + ")", lines.join("\n"), ui.ButtonSet.OK);
 }
 
+// ------------------------------------------------------------------
+//  MÉTHODE SANS MENU (fonctionne toujours, y compris script indépendant)
+// ------------------------------------------------------------------
+// 1) Écrivez l'email entre les guillemets ci-dessous.
+// 2) En haut de l'éditeur, choisissez la fonction « inviterMaintenant ».
+// 3) Cliquez sur ▶ Exécuter. Le lien est envoyé par email (et affiché dans
+//    le journal d'exécution). Videz le champ après usage si vous voulez.
+var EMAIL_A_INVITER = "";
+
+function inviterMaintenant() {
+  if (!EMAIL_A_INVITER) throw new Error("Renseignez d'abord EMAIL_A_INVITER (en haut de cette fonction).");
+  var link = inviteUser(EMAIL_A_INVITER);
+  Logger.log("Invitation envoyée à " + lc_(EMAIL_A_INVITER) + "\nLien : " + link);
+}
+
+/**
+ * Active le menu « Compteur Lisier » même si le script est INDÉPENDANT du
+ * tableur : à lancer UNE fois depuis l'éditeur (choisir « activerMenu » puis
+ * Exécuter, et autoriser). Recharger ensuite le tableur : le menu apparaît.
+ */
+function activerMenu() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "onOpen") ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger("onOpen").forSpreadsheet(adminSS_()).onOpen().create();
+  Logger.log("Menu activé. Rechargez le tableur : « Compteur Lisier » doit apparaître.");
+}
+
 function sendSignupEmail_(email, link, isReset) {
   var subject = isReset
     ? "Réinitialisation de votre accès — Compteur Lisier"
