@@ -79,15 +79,58 @@ Puis pousser la modification (elle se déploiera automatiquement sur le site).
 En pratique : **communiquez l'adresse `/exec` à l'administrateur du projet**, qui
 l'inscrira dans `app.js`.
 
-> Une fois l'adresse en place, le bouton **⚙️ → Tester la connexion au tableur**
-> de l'application doit répondre « ✓ Connexion réussie ».
+> L'adresse `/exec` est déjà renseignée dans `app.js` (constante `ENDPOINT_URL`).
 
-## Étape 7 — Vérifier
+## Étape 7 — Créer les accès (comptes) et vérifier
 
-1. Sur l'écran **Saisie**, choisir une personne, saisir un volume, appuyer sur
-   **Enregistrer le pompage**.
-2. Retourner dans le tableur Google : **une nouvelle ligne** doit être apparue.
-3. Dans l'application, l'historique affiche le badge **✓ Envoyé**.
+L'application est **protégée par un login** : aucun enregistrement n'est accepté
+sans compte valide. Voir la section **« Comptes & accès sécurisé »** ci-dessous
+pour créer un premier accès, puis :
+
+1. Ouvrir l'application, **se connecter** avec l'email + le mot de passe choisi.
+2. Sur l'écran **Saisie**, saisir un volume et appuyer sur **Enregistrer le
+   pompage**, puis signer.
+3. Retourner dans le tableur Google : **une nouvelle ligne** doit être apparue
+   (colonnes *Entreprise · Adresse · Intervenant* issues du **compte**).
+4. Dans l'application, l'historique affiche le badge **✓ Envoyé**.
+
+---
+
+## Comptes & accès sécurisé (login)
+
+L'accès est **imposé côté serveur** (ce script) : le login de l'application n'est
+qu'un écran, c'est le script qui vérifie l'identité avant toute écriture. Les
+comptes sont stockés dans une feuille technique masquée **« Utilisateurs »**
+(mots de passe **hachés + salés**, jamais en clair).
+
+### Créer un accès pour quelqu'un
+
+1. Dans l'éditeur Apps Script, sélectionner la fonction **`inviteUser`** dans la
+   liste déroulante en haut, puis modifier l'appel de test ou utiliser la console.
+   Le plus simple : cliquer sur **Exécuter** après avoir temporairement écrit,
+   en bas du fichier, `inviteUser("prenom.nom@exemple.fr")` — ou lancer la
+   fonction et saisir l'email demandé.
+2. La personne reçoit **un email** avec un lien. En l'ouvrant **depuis son
+   téléphone**, l'application lui propose de **choisir son mot de passe et son
+   identité** (nom, raison sociale, adresse — qui figureront sur ses bordereaux).
+3. C'est tout : elle peut désormais se connecter.
+
+### Autres fonctions d'administration (à lancer depuis l'éditeur)
+
+| Fonction | Effet |
+|---|---|
+| `inviteUser("email")` | Crée un accès (ou ré-invite) et envoie le lien d'inscription. |
+| `resetUserPassword("email")` | Renvoie un lien pour redéfinir le mot de passe. |
+| `deactivateUser("email")` | Désactive l'accès et **révoque toutes ses sessions**. |
+| `listUsers()` | Liste les comptes et leur statut (dans le journal d'exécution). |
+
+> **Autorisation Gmail.** L'envoi des emails d'invitation utilise votre compte
+> Google. Au **premier** `inviteUser` (ou au redéploiement après cette mise à
+> jour), Google redemandera une autorisation (« Envoyer des emails en votre
+> nom ») : acceptez-la.
+
+> **Astuce.** Le lien d'inscription est aussi affiché dans le **journal
+> d'exécution** d'Apps Script (utile si l'email met du temps à arriver).
 
 ---
 
@@ -104,12 +147,14 @@ Si le fichier `Code.gs` change :
 
 - **Faut-il un abonnement ?** Non, Apps Script et Google Sheets sont gratuits
   pour cet usage.
-- **Plusieurs téléphones ?** Oui : mettez la **même adresse** dans le réglage
-  ⚙️ de chaque téléphone. Toutes les saisies arrivent dans le même tableur.
+- **Plusieurs téléphones / utilisateurs ?** Oui : chaque personne se connecte
+  avec **son propre compte**. Toutes les saisies arrivent dans le même tableur,
+  avec l'identité de chaque intervenant.
 - **Un badge « ⏳ En attente » reste affiché ?** Le téléphone était hors ligne
   au moment de la saisie. Dès que la connexion revient, l'envoi se fait tout
-  seul ; vous pouvez aussi forcer via ⚙️ → « Renvoyer les pompages en attente ».
-  Grâce à l'anti-doublon, un même pompage n'est jamais compté deux fois.
+  seul. Grâce à l'anti-doublon, un même pompage n'est jamais compté deux fois.
+- **Mot de passe oublié ?** L'administrateur lance `resetUserPassword("email")`
+  dans Apps Script : la personne reçoit un lien pour en choisir un nouveau.
 - **Récupérer un vrai fichier Excel ?** Dans le tableur : *Fichier → Télécharger
   → Microsoft Excel (.xlsx)*.
 - **Où sont rangés les bordereaux PDF signés ?** Dans un dossier

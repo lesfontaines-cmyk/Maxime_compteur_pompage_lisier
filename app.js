@@ -12,9 +12,8 @@
   var DB_NAME = "compteur-lisier";
   var DB_VERSION = 1;
   var STORE = "entries";
-  var LS_OP_NOM = "lisier.opNom";           // nom de l'opérateur (par appareil)
-  var LS_OP_RAISON = "lisier.opRaison";     // raison sociale de l'entreprise de pompage (par appareil)
-  var LS_OP_ADRESSE = "lisier.opAdresse";   // adresse de l'entreprise de pompage (par appareil)
+  var LS_SESSION = "lisier.session";        // jeton de session (par appareil)
+  var LS_PROFILE = "lisier.profile";        // profil du compte (identité) en cache pour l'offline
 
   // ============================================================
   //  CONFIGURATION (en dur — réservée à l'administrateur)
@@ -39,10 +38,40 @@
   function getEndpoint() { return (ENDPOINT_URL || "").trim(); }
   function expNom() { return EXPLOITATION_NOM; }
   function expAdr() { return EXPLOITATION_ADR; }
-  function opNom() { return (localStorage.getItem(LS_OP_NOM) || "").trim(); }
-  function opRaison() { return (localStorage.getItem(LS_OP_RAISON) || "").trim(); }
-  function opAdresse() { return (localStorage.getItem(LS_OP_ADRESSE) || "").trim(); }
-  function isConfigComplete() { return !!(opNom() && opRaison() && opAdresse()); }
+
+  // -------------------- Session & profil du compte --------------------
+  function getSession() { return (localStorage.getItem(LS_SESSION) || "").trim(); }
+  function getProfile() {
+    try { return JSON.parse(localStorage.getItem(LS_PROFILE) || "null"); } catch (_) { return null; }
+  }
+  function setAuth(token, profile) {
+    if (token) localStorage.setItem(LS_SESSION, token);
+    if (profile) localStorage.setItem(LS_PROFILE, JSON.stringify(profile));
+  }
+  function clearSession() { localStorage.removeItem(LS_SESSION); }
+  function clearAuth() { localStorage.removeItem(LS_SESSION); localStorage.removeItem(LS_PROFILE); }
+  function isAuthed() { return !!(getSession() && getProfile()); }
+
+  // Identité de l'opérateur : rattachée au COMPTE (plus de config par appareil).
+  function opNom() { var p = getProfile(); return p ? String(p.nom || "").trim() : ""; }
+  function opRaison() { var p = getProfile(); return p ? String(p.raison || "").trim() : ""; }
+  function opAdresse() { var p = getProfile(); return p ? String(p.adresse || "").trim() : ""; }
+  function opEmail() { var p = getProfile(); return p ? String(p.email || "").trim() : ""; }
+
+  // Appel API JSON au script (réponse lisible en CORS). Rejette si réseau/serveur KO.
+  function apiPost(payload) {
+    var url = getEndpoint();
+    if (!url) return Promise.reject(new Error("noendpoint"));
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      redirect: "follow"
+    }).then(function (res) {
+      if (!res.ok) throw new Error("http " + res.status);
+      return res.json();
+    });
+  }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -151,13 +180,17 @@
   function sendEntry(entry) {
     var url = getEndpoint();
     if (!url) return Promise.resolve("noendpoint");
+    var token = getSession();
+    if (!token) return Promise.resolve("unauthorized");
     if (!navigator.onLine) return Promise.resolve("pending");
 
+    // Le jeton est lu au moment de l'envoi (et non stocké dans l'entrée) :
+    // ainsi une re-connexion met à jour le jeton des pompages en attente.
+    // L'identité n'est PAS envoyée : le serveur utilise celle du compte.
     var body = JSON.stringify({
+      action: "pump",
+      token: token,
       id: entry.id,
-      personne: entry.personne,
-      entreprise: entry.entreprise || "",
-      adresse: entry.adresse || "",
       volumeL: entry.volumeL,
       ts: entry.ts,
       filename: entry.filename || "",
@@ -169,6 +202,7 @@
     return fetch(url, opts).then(function (res) {
       if (res.ok) {
         return res.json().then(function (j) {
+          if (j && j.error === "unauthorized") return "unauthorized";
           return (j && j.ok !== false) ? "sent" : "pending";
         }, function () { return "retry-nocors"; });
       }
@@ -178,7 +212,8 @@
     }).then(function (state) {
       if (state !== "retry-nocors") return state;
       // 2) Repli « no-cors » : livraison best-effort (réponse illisible),
-      //    marquée envoyée de façon optimiste (le script dédoublonne par id).
+      //    marquée envoyée de façon optimiste (le script dédoublonne par id et
+      //    refuse sans jeton valide).
       return fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: body })
         .then(function () { return "sent"; }, function () { return "pending"; });
     });
@@ -186,20 +221,24 @@
 
   var _flushing = false;
   function flushPending() {
-    if (_flushing) return Promise.resolve();
+    if (_flushing || !isAuthed()) return Promise.resolve();
     _flushing = true;
+    var unauthorized = false;
     return unsyncedEntries().then(function (list) {
       var chain = Promise.resolve();
       list.forEach(function (e) {
         chain = chain.then(function () {
+          if (unauthorized) return;
           return sendEntry(e).then(function (st) {
             if (st === "sent") { e.synced = true; return putEntry(e); }
+            if (st === "unauthorized") unauthorized = true;
           });
         });
       });
       return chain;
     }).then(function () {
       _flushing = false;
+      if (unauthorized) onSessionExpired();
       return refreshUI();
     }, function () { _flushing = false; });
   }
@@ -226,13 +265,30 @@
     el.installBannerBtn = $("#installBannerBtn");
     el.installBannerClose = $("#installBannerClose");
     el.iosInstallModal = $("#iosInstallModal");
-    // réglages
+    // authentification
+    el.authView = $("#authView");
+    el.loginForm = $("#loginForm");
+    el.loginEmail = $("#loginEmail");
+    el.loginPassword = $("#loginPassword");
+    el.loginErr = $("#loginErr");
+    el.loginBtn = $("#loginBtn");
+    el.signupForm = $("#signupForm");
+    el.signupEmail = $("#signupEmail");
+    el.signupPassword = $("#signupPassword");
+    el.signupPassword2 = $("#signupPassword2");
+    el.signupNom = $("#signupNom");
+    el.signupRaison = $("#signupRaison");
+    el.signupAdresse = $("#signupAdresse");
+    el.signupErr = $("#signupErr");
+    el.signupBtn = $("#signupBtn");
+    el.authLoading = $("#authLoading");
+    el.authLoadingText = $("#authLoadingText");
+    // réglages (compte)
     el.settings = $("#settings");
-    el.opNom = $("#opNom");
-    el.opRaison = $("#opRaison");
-    el.opAdresse = $("#opAdresse");
-    el.opErr = $("#opErr");
-    el.reqBanner = $("#reqBanner");
+    el.accEmail = $("#accEmail");
+    el.accNom = $("#accNom");
+    el.accRaison = $("#accRaison");
+    el.accAdresse = $("#accAdresse");
     // signature
     el.signModal = $("#signModal");
     el.signRecap = $("#signRecap");
@@ -352,12 +408,8 @@
   function onSubmit(ev) {
     ev.preventDefault();
 
-    // Nom, raison sociale et adresse obligatoires (ils figurent sur le bordereau).
-    if (!isConfigComplete()) {
-      toast("Renseignez d'abord le nom, la raison sociale et l'adresse.", "err");
-      openSettings(true);
-      return;
-    }
+    // Accès réservé : impossible d'enregistrer sans être connecté.
+    if (!isAuthed()) { showAuth("login", {}); return; }
 
     var vol = parseVolume(el.volume.value);
     if (!(vol > 0)) {
@@ -454,6 +506,7 @@
     }).then(function () {
       return sendEntry(entry).then(function (st) {
         if (st === "sent") { entry.synced = true; return putEntry(entry).then(refreshUI); }
+        if (st === "unauthorized") onSessionExpired();
       });
     }).then(function () {
       return flushPending();
@@ -558,80 +611,164 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
-  // -------------------- Réglages --------------------
-  var _forcedOpen = false;
-
-  function highlightRequired(on) {
-    [el.opNom, el.opRaison, el.opAdresse].forEach(function (inp) {
-      var empty = !(inp.value || "").trim();
-      inp.classList.toggle("input--required", !!on && empty);
-    });
-  }
-
-  function firstEmptyField() {
-    if (!opNom()) return el.opNom;
-    if (!opRaison()) return el.opRaison;
-    return el.opAdresse;
-  }
-
-  function openSettings(forceRequired) {
-    el.opNom.value = opNom();
-    el.opRaison.value = opRaison();
-    el.opAdresse.value = opAdresse();
-    el.opErr.hidden = true;
-    _forcedOpen = (forceRequired === true) && !isConfigComplete();
-    el.reqBanner.hidden = !_forcedOpen;
-    highlightRequired(_forcedOpen);
+  // -------------------- Réglages (compte) --------------------
+  function openSettings() {
+    var p = getProfile() || {};
+    if (el.accEmail) el.accEmail.textContent = p.email || "—";
+    if (el.accNom) el.accNom.textContent = p.nom || "—";
+    if (el.accRaison) el.accRaison.textContent = p.raison || "—";
+    if (el.accAdresse) el.accAdresse.textContent = p.adresse || "—";
     el.settings.hidden = false;
-    if (_forcedOpen) { firstEmptyField().focus(); }
   }
-  function closeSettings() { _forcedOpen = false; el.settings.hidden = true; }
-
-  // Fermeture demandée (croix / fond) : bloquée tant que la config obligatoire
-  // n'est pas complète lors d'une ouverture forcée.
-  function tryCloseSettings() {
-    if (_forcedOpen && !isConfigComplete()) {
-      el.opErr.hidden = false;
-      highlightRequired(true);
-      firstEmptyField().focus();
-      return;
-    }
-    closeSettings();
-  }
-
-  function saveSettings() {
-    var n = (el.opNom.value || "").trim();
-    var r = (el.opRaison.value || "").trim();
-    var a = (el.opAdresse.value || "").trim();
-    if (!n || !r || !a) {
-      el.opErr.hidden = false;
-      highlightRequired(true);
-      (!n ? el.opNom : !r ? el.opRaison : el.opAdresse).focus();
-      return;
-    }
-    localStorage.setItem(LS_OP_NOM, n);
-    localStorage.setItem(LS_OP_RAISON, r);
-    localStorage.setItem(LS_OP_ADRESSE, a);
-    el.opErr.hidden = true;
-    highlightRequired(false);
-    _forcedOpen = false;
-    el.reqBanner.hidden = true;
-    closeSettings();
-    renderOpDisplay();
-    toast("Informations enregistrées.", "ok");
-  }
+  function closeSettings() { el.settings.hidden = true; }
 
   function renderOpDisplay() {
     if (!el.opDisplay) return;
-    if (isConfigComplete()) {
+    if (isAuthed()) {
       el.opDisplay.innerHTML = '<span class="op-display__nom"></span><span class="op-display__soc"></span>';
       el.opDisplay.querySelector(".op-display__nom").textContent = opNom();
       el.opDisplay.querySelector(".op-display__soc").textContent = opRaison();
       el.opDisplay.classList.remove("op-display--empty");
     } else {
-      el.opDisplay.textContent = "— À configurer (appuyez sur ⚙️) —";
+      el.opDisplay.textContent = "— Non connecté —";
       el.opDisplay.classList.add("op-display--empty");
     }
+  }
+
+  // -------------------- Authentification (écran) --------------------
+  var _signupToken = "";
+
+  function showAuth(mode, opts) {
+    opts = opts || {};
+    if (el.authView) el.authView.hidden = false;
+    el.loginForm.hidden = (mode !== "login");
+    el.signupForm.hidden = (mode !== "signup");
+    el.authLoading.hidden = (mode !== "loading");
+    if (mode === "loading") {
+      if (el.authLoadingText) el.authLoadingText.textContent = opts.text || "Vérification…";
+    } else if (mode === "login") {
+      if (opts.email != null) el.loginEmail.value = opts.email;
+      else if (!el.loginEmail.value) el.loginEmail.value = opEmail();
+      el.loginErr.hidden = !opts.error;
+      if (opts.error) el.loginErr.textContent = opts.error;
+    } else if (mode === "signup") {
+      if (opts.email != null) el.signupEmail.textContent = opts.email || "—";
+      el.signupErr.hidden = !opts.error;
+      if (opts.error) el.signupErr.textContent = opts.error;
+    }
+  }
+
+  function showApp() {
+    if (el.authView) el.authView.hidden = true;
+    renderOpDisplay();
+    refreshUI().then(flushPending);
+  }
+
+  function onSessionExpired() {
+    var email = opEmail();
+    clearSession();
+    showAuth("login", { email: email, error: "Votre session a expiré. Reconnectez-vous." });
+  }
+
+  function logout() {
+    if (!window.confirm("Se déconnecter de ce téléphone ?")) return;
+    var email = opEmail();
+    clearAuth();
+    closeSettings();
+    switchView("saisie");
+    showAuth("login", { email: email });
+  }
+
+  function doLogin(ev) {
+    if (ev) ev.preventDefault();
+    var email = (el.loginEmail.value || "").trim().toLowerCase();
+    var pw = el.loginPassword.value || "";
+    if (!email || !pw) { showAuth("login", { email: email, error: "Renseignez votre email et votre mot de passe." }); return; }
+    if (!navigator.onLine) { showAuth("login", { email: email, error: "Connexion internet requise pour se connecter." }); return; }
+    el.loginBtn.disabled = true;
+    el.loginErr.hidden = true;
+    apiPost({ action: "login", email: email, password: pw }).then(function (j) {
+      el.loginBtn.disabled = false;
+      if (j && j.ok && j.token) {
+        setAuth(j.token, j.profile);
+        el.loginPassword.value = "";
+        showApp();
+      } else {
+        showAuth("login", { email: email, error: "Email ou mot de passe incorrect." });
+      }
+    }, function () {
+      el.loginBtn.disabled = false;
+      showAuth("login", { email: email, error: "Connexion au serveur impossible. Réessayez." });
+    });
+  }
+
+  function doSignup(ev) {
+    if (ev) ev.preventDefault();
+    var pw = el.signupPassword.value || "", pw2 = el.signupPassword2.value || "";
+    var nom = (el.signupNom.value || "").trim();
+    var raison = (el.signupRaison.value || "").trim();
+    var adresse = (el.signupAdresse.value || "").trim();
+    if (pw.length < 8) { showAuth("signup", { error: "Le mot de passe doit contenir au moins 8 caractères." }); return; }
+    if (pw !== pw2) { showAuth("signup", { error: "Les deux mots de passe ne correspondent pas." }); return; }
+    if (!nom || !raison || !adresse) { showAuth("signup", { error: "Renseignez votre nom, votre raison sociale et votre adresse." }); return; }
+    if (!navigator.onLine) { showAuth("signup", { error: "Connexion internet requise pour créer votre accès." }); return; }
+    el.signupBtn.disabled = true;
+    el.signupErr.hidden = true;
+    apiPost({ action: "finalizeSignup", token: _signupToken, password: pw, nom: nom, raison: raison, adresse: adresse }).then(function (j) {
+      el.signupBtn.disabled = false;
+      if (j && j.ok && j.token) {
+        setAuth(j.token, j.profile);
+        stripSignupParam();
+        el.signupPassword.value = el.signupPassword2.value = "";
+        showApp();
+      } else {
+        var msg = (j && j.error === "expired-token") ? "Ce lien a expiré. Demandez-en un nouveau à l'administrateur."
+          : (j && j.error === "bad-token") ? "Ce lien est invalide. Demandez-en un nouveau."
+          : (j && j.error === "weak-password") ? "Le mot de passe doit contenir au moins 8 caractères."
+          : "Impossible de créer l'accès. Réessayez.";
+        showAuth("signup", { error: msg });
+      }
+    }, function () {
+      el.signupBtn.disabled = false;
+      showAuth("signup", { error: "Connexion au serveur impossible. Réessayez." });
+    });
+  }
+
+  function getSignupTokenFromUrl() {
+    try { return new URLSearchParams(window.location.search).get("signup") || ""; } catch (_) { return ""; }
+  }
+  function stripSignupParam() {
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.delete("signup");
+      window.history.replaceState({}, document.title, u.pathname + u.search + u.hash);
+    } catch (_) {}
+  }
+
+  // Résolution de l'état d'authentification au démarrage.
+  function resolveAuth() {
+    _signupToken = getSignupTokenFromUrl();
+    if (_signupToken) {
+      showAuth("loading", { text: "Ouverture du lien d'inscription…" });
+      if (!navigator.onLine) { showAuth("signup", { email: "", error: "Connexion internet requise pour finaliser l'inscription." }); return; }
+      apiPost({ action: "signupInfo", token: _signupToken }).then(function (j) {
+        if (j && j.ok) showAuth("signup", { email: j.email });
+        else { stripSignupParam(); showAuth("login", { error: "Ce lien d'inscription est invalide ou expiré." }); }
+      }, function () { showAuth("signup", { email: "", error: "Serveur injoignable. Réessayez." }); });
+      return;
+    }
+    if (isAuthed()) {
+      // Session en cache : on entre tout de suite (offline-first), validation en arrière-plan.
+      showApp();
+      if (navigator.onLine) {
+        apiPost({ action: "session", token: getSession() }).then(function (j) {
+          if (j && j.ok) { if (j.profile) { setAuth(null, j.profile); renderOpDisplay(); } }
+          else { onSessionExpired(); }
+        }, function () { /* réseau incertain : on garde la session en cache */ });
+      }
+      return;
+    }
+    showAuth("login", {});
   }
 
   // -------------------- Installation (PWA) --------------------
@@ -703,7 +840,6 @@
   // -------------------- Démarrage --------------------
   function init() {
     cacheEls();
-    renderOpDisplay();
     preloadLogo();
     setupInstall();
 
@@ -714,17 +850,13 @@
       t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });
     });
 
-    $("#btnSettings").addEventListener("click", function () { openSettings(false); });
-    $("#btnSaveSettings").addEventListener("click", saveSettings);
-    document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", tryCloseSettings); });
+    $("#btnSettings").addEventListener("click", function () { openSettings(); });
+    $("#btnLogout").addEventListener("click", logout);
+    document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", closeSettings); });
 
-    // Mise à jour de la surbrillance des champs obligatoires en direct
-    [el.opNom, el.opRaison, el.opAdresse].forEach(function (inp) {
-      inp.addEventListener("input", function () {
-        el.opErr.hidden = true;
-        if (!el.reqBanner.hidden) highlightRequired(true);
-      });
-    });
+    // Authentification
+    el.loginForm.addEventListener("submit", doLogin);
+    el.signupForm.addEventListener("submit", doSignup);
 
     // Signature (pop-up)
     $("#signValidate").addEventListener("click", onSignValidate);
@@ -745,11 +877,7 @@
     });
 
     updateNet();
-    refreshUI().then(flushPending);
-
-    // Première utilisation : forcer la saisie du nom, de la raison sociale et
-    // de l'adresse (indispensables sur le bordereau).
-    if (!isConfigComplete()) openSettings(true);
+    resolveAuth();
 
     // Service worker (hors-ligne)
     if ("serviceWorker" in navigator) {

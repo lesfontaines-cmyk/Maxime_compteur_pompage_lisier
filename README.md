@@ -7,9 +7,11 @@ comptabiliser les volumes de **lisier pompés**.
 > Charles Murgat (crème `#f5f0e8`, or `#7a5020`, brun `#141008`), polices
 > *Cormorant Garamond* + *Jost*, et logo de marque commun.
 
-- **Identité de l'opérateur configurée une fois** par téléphone (nom, raison
-  sociale, adresse) — champs **obligatoires** (fenêtre ouverte automatiquement
-  au premier lancement, champs en surbrillance)
+- **Accès sécurisé par login** (email + mot de passe) — l'app est protégée
+  côté serveur (voir le guide de déploiement). Les comptes sont créés par
+  l'administrateur, qui envoie un lien d'inscription par email.
+- **Identité de l'opérateur rattachée au compte** (nom, raison sociale,
+  adresse), choisie une fois à l'inscription et imprimée sur les bordereaux
 - Champ de saisie du **volume en litres**
 - Bouton **Enregistrer**
 - **Signature au doigt** (pop-up) à chaque pompage, puis génération d'un
@@ -85,11 +87,17 @@ L'icône 💧 apparaît alors comme une vraie application.
 - Un **anti-doublon** (identifiant unique par pompage) garantit qu'une même
   saisie n'est **jamais ajoutée deux fois** au tableur, même en cas de renvoi.
 
-## 🔐 Données
+## 🔐 Accès & données
 
-- L'**historique** est stocké **localement** sur chaque téléphone
-  (via IndexedDB). Le vider (⚙️) n'affecte pas le tableur.
-- Le **tableur Google** est la source centrale partagée par tous les téléphones.
+- **Authentification** : l'accès est protégé par un login (email + mot de passe)
+  **imposé côté serveur** (Apps Script). Les mots de passe sont **hachés et
+  salés**, jamais stockés en clair. Création des comptes et gestion : voir
+  [`google-apps-script/DEPLOIEMENT.md`](google-apps-script/DEPLOIEMENT.md)
+  (fonction `inviteUser`).
+- L'**identité de l'opérateur** est rattachée au compte (le client ne peut pas
+  l'usurper : le serveur écrit l'identité du compte authentifié).
+- L'**historique** est stocké **localement** sur chaque téléphone (via IndexedDB).
+- Le **tableur Google** est la source centrale partagée par tous les comptes.
 
 ---
 
@@ -107,8 +115,8 @@ python3 -m http.server 8080
 
 ## ✏️ Personnalisation rapide
 
-- **Identité de l'opérateur** : saisie dans ⚙️ au 1er lancement (nom, raison
-  sociale, adresse), conservée en cache sur l'appareil.
+- **Identité de l'opérateur** : choisie par chaque utilisateur lors de son
+  inscription (finalisation du lien reçu par email), rattachée à son compte.
 - **Changer les colonnes du tableur** : adapter `HEADERS` et l'ordre du
   `appendRow(...)` dans `google-apps-script/Code.gs`.
 - **Couleurs / polices** : variables `--cream`, `--gold`, `--dark`… en haut de
