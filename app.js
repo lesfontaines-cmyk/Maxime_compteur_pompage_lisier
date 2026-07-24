@@ -529,10 +529,9 @@
 
     // En-tête exploitation — logo de l'entreprise (si prêt) + nom + adresse.
     if (_logoPng) {
-      var lw = 66, lh = lw / LOGO_ASPECT;                 // largeur fixe, hauteur proportionnelle
-      try { doc.addImage(_logoPng, "PNG", (W - lw) / 2, 12, lw, lh); } catch (_) {}
-      // Le nom de l'exploitation figure déjà dans le logo : on n'imprime que l'adresse.
-      if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 72); doc.text(adr, W / 2, 28, { align: "center" }); }
+      // En-tête = logo seul (le nom et l'adresse n'apportent rien de plus).
+      var lw = 70, lh = lw / LOGO_ASPECT;                 // largeur fixe, hauteur proportionnelle
+      try { doc.addImage(_logoPng, "PNG", (W - lw) / 2, 16, lw, lh); } catch (_) {}
     } else {
       // Repli texte si le logo n'a pas pu être chargé/rastérisé.
       doc.setFont("times", "bold"); doc.setFontSize(19); doc.setTextColor(20, 16, 8);
