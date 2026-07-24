@@ -530,10 +530,9 @@
     // En-tête exploitation — logo de l'entreprise (si prêt) + nom + adresse.
     if (_logoPng) {
       var lw = 66, lh = lw / LOGO_ASPECT;                 // largeur fixe, hauteur proportionnelle
-      try { doc.addImage(_logoPng, "PNG", (W - lw) / 2, 11, lw, lh); } catch (_) {}
-      doc.setFont("times", "bold"); doc.setFontSize(12); doc.setTextColor(20, 16, 8);
-      doc.text(nom.toUpperCase(), W / 2, 26, { align: "center" });
-      if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 72); doc.text(adr, W / 2, 30.5, { align: "center" }); }
+      try { doc.addImage(_logoPng, "PNG", (W - lw) / 2, 12, lw, lh); } catch (_) {}
+      // Le nom de l'exploitation figure déjà dans le logo : on n'imprime que l'adresse.
+      if (adr) { doc.setFont("times", "normal"); doc.setFontSize(9); doc.setTextColor(90, 80, 72); doc.text(adr, W / 2, 28, { align: "center" }); }
     } else {
       // Repli texte si le logo n'a pas pu être chargé/rastérisé.
       doc.setFont("times", "bold"); doc.setFontSize(19); doc.setTextColor(20, 16, 8);
