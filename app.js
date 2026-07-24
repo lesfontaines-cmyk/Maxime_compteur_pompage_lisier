@@ -494,8 +494,6 @@
     doc.setDrawColor(122, 80, 32); doc.setLineWidth(0.6); doc.line(m, 34, right, 34);
     doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(20, 16, 8);
     doc.text("BORDEREAU DE POMPAGE DE LISIER", W / 2, 42, { align: "center" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7.3); doc.setTextColor(120, 110, 100);
-    doc.text("Document interne — mise en page inspirée du CERFA n°12571*01 (bordereau de suivi de déchets)", W / 2, 46.5, { align: "center" });
 
     var y = 54;
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(60, 60, 60);
