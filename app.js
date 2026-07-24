@@ -20,7 +20,7 @@
   //  L'opérateur n'a rien à régler dans l'application.
   // ============================================================
   // Adresse « /exec » du script Google (Web App déployé).
-  var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwryCl3KsCid3NpPG7SYMPXkLMeexa7Wgc3k8tymNjAaPOuPb2Ol7j80zC03IfxZeehfQ/exec";
+  var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwP7ZXHPqhP42_Vi804rGeuU2np7OwB4nrDCUeIoOy8NK7qncJDUZ5Vdw2WWVoc0Z6GGw/exec";
   // Identité de l'exploitation, imprimée en en-tête du bordereau PDF.
   var EXPLOITATION_NOM = "Les Fils de Charles Murgat";
   var EXPLOITATION_ADR = "36 Chem. du Lavoir, 38270 Beaufort";
