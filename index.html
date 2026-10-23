@@ -121,6 +121,21 @@
             <p id="volErr" class="field__error" hidden>Entrez un volume supérieur à 0.</p>
           </div>
 
+          <div class="field">
+            <span class="label">Destination</span>
+            <div class="choice" role="radiogroup" aria-label="Destination du lisier">
+              <label class="choice__opt">
+                <input type="radio" name="destination" value="Épandage" />
+                <span>Épandage</span>
+              </label>
+              <label class="choice__opt">
+                <input type="radio" name="destination" value="Méthanisation" />
+                <span>Méthanisation</span>
+              </label>
+            </div>
+            <p id="destErr" class="field__error" hidden>Choisissez une destination.</p>
+          </div>
+
           <button id="btnSave" type="submit" class="btn-primary">Enregistrer le pompage</button>
           <p id="syncHint" class="note" hidden></p>
         </form>

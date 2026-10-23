@@ -250,6 +250,7 @@
     el.opDisplay = $("#opDisplay");
     el.volume = $("#volume");
     el.volErr = $("#volErr");
+    el.destErr = $("#destErr");
     el.btnSave = $("#btnSave");
     el.syncHint = $("#syncHint");
     el.net = $("#netBadge");
@@ -419,8 +420,25 @@
     }
     el.volErr.hidden = true;
 
-    pendingPump = { personne: opNom(), volumeL: vol };
+    var dest = selectedDestination();
+    if (!dest) { el.destErr.hidden = false; return; }
+    el.destErr.hidden = true;
+
+    pendingPump = { personne: opNom(), volumeL: vol, destination: dest };
     openSign(pendingPump);
+  }
+
+  // Destination choisie (Épandage / Méthanisation) ou "" si aucune.
+  function selectedDestination() {
+    var r = document.querySelector('input[name="destination"]:checked');
+    return r ? r.value : "";
+  }
+  function resetDestination() {
+    document.querySelectorAll('input[name="destination"]').forEach(function (r) {
+      r.checked = false;
+      if (r.closest(".choice__opt")) r.closest(".choice__opt").classList.remove("is-selected");
+    });
+    if (el.destErr) el.destErr.hidden = true;
   }
 
   // -------------------- Signature (pop-up) --------------------
@@ -430,7 +448,7 @@
     var d = new Date();
     el.signRecap.innerHTML = "<b>" + escapeHtml(p.personne) + "</b> — " +
       nfLitres.format(p.volumeL) + " litres" +
-      '<div class="sign-recap__meta">' + fmtDate.format(d) + " à " + fmtTime.format(d) + "</div>";
+      '<div class="sign-recap__meta">' + escapeHtml(p.destination || "") + " · " + fmtDate.format(d) + " à " + fmtTime.format(d) + "</div>";
     el.signErr.hidden = true;
     el.signModal.hidden = false;
     if (window.requestAnimationFrame) requestAnimationFrame(setupPad); else setupPad();
@@ -481,6 +499,7 @@
       personne: pendingPump.personne,
       entreprise: opRaison(),
       adresse: opAdresse(),
+      destination: pendingPump.destination || "",
       volumeL: pendingPump.volumeL,
       ts: now.toISOString(),
       synced: false,
@@ -499,6 +518,7 @@
     closeSign();
     addEntry(entry).then(function () {
       el.volume.value = "";
+      resetDestination();
       pendingPump = null;
       vibrate(30);
       toast("Pompage enregistré et signé ✓", "ok");
@@ -567,15 +587,16 @@
     fieldBox("1 · Exploitation / producteur", nom + (adr ? "  —  " + adr : ""), 16);
     fieldBox("2 · Intervenant — entreprise de pompage", interv, 16);
     fieldBox("3 · Nature du produit pompé", "Lisier (effluent d'élevage)", 16);
-    fieldBox("4 · Volume pompé", volTxt + " litres", 18, true);
+    fieldBox("4 · Destination du lisier", entry.destination || "—", 16);
+    fieldBox("5 · Volume pompé", volTxt + " litres", 18, true);
 
     // Ligne date + opérateur (deux colonnes)
     var half = (cw - 4) / 2;
     doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
     doc.rect(m, y, half, 16); doc.rect(m + half + 4, y, half, 16);
     doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
-    doc.text("5 · DATE ET HEURE DU POMPAGE", m + 3, y + 5);
-    doc.text("6 · OPÉRATEUR", m + half + 7, y + 5);
+    doc.text("6 · DATE ET HEURE DU POMPAGE", m + 3, y + 5);
+    doc.text("7 · OPÉRATEUR", m + half + 7, y + 5);
     doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(20, 16, 8);
     doc.text(dateStr + " à " + heureStr, m + 4, y + 12.5);
     doc.text(entry.personne, m + half + 8, y + 12.5);
@@ -585,7 +606,7 @@
     var sh = 46;
     doc.setDrawColor(150, 150, 150); doc.rect(m, y, cw, sh);
     doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(120, 110, 100);
-    doc.text("7 · SIGNATURE DE L'OPÉRATEUR", m + 3, y + 5);
+    doc.text("8 · SIGNATURE DE L'OPÉRATEUR", m + 3, y + 5);
     if (entry.signature) { try { doc.addImage(entry.signature, "PNG", m + 4, y + 8, 78, 30); } catch (_) {} }
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90, 80, 72);
     doc.text("Signé électroniquement le " + dateStr + " à " + heureStr, right - 3, y + sh - 4, { align: "right" });
@@ -843,6 +864,16 @@
 
     el.form.addEventListener("submit", onSubmit);
     el.volume.addEventListener("input", function () { if (parseVolume(el.volume.value) > 0) el.volErr.hidden = true; });
+
+    // Sélecteur de destination : surbrillance de l'option choisie + masque l'erreur.
+    document.querySelectorAll('input[name="destination"]').forEach(function (r) {
+      r.addEventListener("change", function () {
+        document.querySelectorAll(".choice__opt").forEach(function (o) {
+          o.classList.toggle("is-selected", o.contains(r) && r.checked);
+        });
+        if (el.destErr) el.destErr.hidden = true;
+      });
+    });
 
     document.querySelectorAll(".tab").forEach(function (t) {
       t.addEventListener("click", function () { switchView(t.getAttribute("data-view")); });

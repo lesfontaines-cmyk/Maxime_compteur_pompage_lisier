@@ -511,6 +511,24 @@ body {
 }
 .history__pdf:hover { color: var(--gold-lt); }
 
+/* ---------- Sélecteur de destination (Épandage / Méthanisation) ---------- */
+.choice { display: flex; gap: 10px; margin-top: 6px; }
+.choice__opt {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 15px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); color: var(--mid);
+  font-size: 14px; letter-spacing: .5px; cursor: pointer;
+  text-align: center; -webkit-user-select: none; user-select: none;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.choice__opt input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.choice__opt.is-selected {
+  border-color: var(--gold); background: var(--gold); color: var(--white); font-weight: 500;
+}
+.choice__opt:active { transform: scale(.98); }
+
 /* ---------- Authentification (plein écran) ---------- */
 .auth {
   position: fixed;
