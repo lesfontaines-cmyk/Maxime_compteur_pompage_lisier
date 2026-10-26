@@ -192,6 +192,7 @@
       token: token,
       id: entry.id,
       volumeL: entry.volumeL,
+      destination: entry.destination || "",
       ts: entry.ts,
       filename: entry.filename || "",
       pdfBase64: entry.pdfBase64 || ""

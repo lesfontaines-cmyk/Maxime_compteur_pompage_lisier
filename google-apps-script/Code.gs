@@ -11,7 +11,7 @@
  *    avec l'identité RATTACHÉE AU COMPTE (pas de valeurs envoyées par le client).
  *
  * Colonnes de « Pompages » :
- *   Date | Heure | Entreprise | Adresse | Intervenant | Volume (L) | Bordereau
+ *   Date | Heure | Entreprise | Adresse | Intervenant | Volume (L) | Destination | Bordereau
  *
  * Création d'un accès (réservé à l'administrateur) : lancer la fonction
  *   inviteUser("email@exemple.fr")
@@ -33,7 +33,7 @@ var APP_URL = "https://pompage-lisier.charlesmurgat.com";
 var DATA_SHEET = "Pompages";       // feuille des données visibles
 var ID_SHEET = "_ids";             // feuille technique masquée (anti-doublon)
 var USERS_SHEET = "Utilisateurs";  // feuille technique masquée (comptes)
-var HEADERS = ["Date", "Heure", "Entreprise", "Adresse", "Intervenant", "Volume (L)", "Bordereau"];
+var HEADERS = ["Date", "Heure", "Entreprise", "Adresse", "Intervenant", "Volume (L)", "Destination", "Bordereau"];
 var USERS_HEADERS = ["Email", "Statut", "Sel", "Hash", "JetonHash", "JetonExp",
                      "Nom", "Raison", "Adresse", "Sessions", "CreeLe", "MajLe"];
 
@@ -158,6 +158,7 @@ function handlePump_(ss, data) {
   var prof = profileFromRow_(auth.values);
   var personne = prof.nom, entreprise = prof.raison, adresse = prof.adresse;
   var volume = Number(data.volumeL);
+  var destination = String(data.destination || "").trim();
   var id = String(data.id || "").trim();
   if (!(volume > 0)) return json({ ok: false, error: "invalid" });
 
@@ -191,7 +192,7 @@ function handlePump_(ss, data) {
   var dateStr = Utilities.formatDate(ts, tz, "dd/MM/yyyy");
   var heureStr = Utilities.formatDate(ts, tz, "HH:mm");
 
-  sheet.appendRow([dateStr, heureStr, entreprise, adresse, personne, volume, fileUrl]);
+  sheet.appendRow([dateStr, heureStr, entreprise, adresse, personne, volume, destination, fileUrl]);
   return json({ ok: true, fileUrl: fileUrl });
 }
 
@@ -569,6 +570,14 @@ function migrateHeaders_(sheet) {
     sheet.getRange(1, at2 + 1).setValue("Adresse");
     sheet.setColumnWidth(at2 + 1, 200);
     header.splice(at2, 0, "Adresse");
+  }
+  if (header.indexOf("Destination") === -1) {
+    var bordIdx = header.indexOf("Bordereau");
+    var at3 = (bordIdx === -1) ? header.length : bordIdx; // juste avant « Bordereau »
+    sheet.insertColumnBefore(at3 + 1);
+    sheet.getRange(1, at3 + 1).setValue("Destination");
+    sheet.setColumnWidth(at3 + 1, 140);
+    header.splice(at3, 0, "Destination");
   }
   sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold");
 }
