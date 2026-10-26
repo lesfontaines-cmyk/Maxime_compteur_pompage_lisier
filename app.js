@@ -360,11 +360,7 @@
       vol.className = "history__vol";
       vol.innerHTML = nfLitres.format(e.volumeL) + " <small>L</small>";
 
-      var badge = document.createElement("span");
-      badge.className = "badge " + (e.synced ? "badge--ok" : "badge--wait");
-      badge.textContent = e.synced ? "✓ Envoyé" : "⏳ En attente";
-
-      li.appendChild(main); li.appendChild(vol); li.appendChild(badge);
+      li.appendChild(main); li.appendChild(vol);
       frag.appendChild(li);
     });
     el.history.appendChild(frag);
@@ -381,14 +377,9 @@
     el.sumToday.textContent = nfLitres.format(today);
   }
 
-  function renderSyncHint(list) {
-    var pending = list.filter(function (e) { return !e.synced; }).length;
-    if (pending > 0) {
-      el.syncHint.hidden = false;
-      el.syncHint.textContent = "⏳ " + pending + " pompage(s) en attente d'envoi.";
-    } else {
-      el.syncHint.hidden = true;
-    }
+  function renderSyncHint() {
+    // Le statut d'envoi n'est plus affiché : l'envoi se fait automatiquement.
+    if (el.syncHint) el.syncHint.hidden = true;
   }
 
   function refreshUI() {
