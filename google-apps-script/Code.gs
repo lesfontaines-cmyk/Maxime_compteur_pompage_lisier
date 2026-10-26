@@ -292,6 +292,7 @@ function onOpen() {
     .addItem("🚫 Désactiver un accès…", "promptDeactivateUser")
     .addSeparator()
     .addItem("👥 Lister les utilisateurs", "menuListUsers")
+    .addItem("🔧 Mettre à jour les colonnes du tableur", "promptMajColonnes")
     .addToUi();
 }
 
@@ -345,6 +346,22 @@ function menuListUsers() {
   var all = sheet.getRange(2, 1, last - 1, USERS_HEADERS.length).getValues();
   var lines = all.map(function (v) { return "• " + getField_(v, "Email") + " — " + getField_(v, "Statut"); });
   ui.alert("Utilisateurs (" + lines.length + ")", lines.join("\n"), ui.ButtonSet.OK);
+}
+
+/**
+ * Crée/complète immédiatement les colonnes de la feuille « Pompages » (utile
+ * quand une nouvelle colonne, ex. « Destination », n'apparaît pas encore).
+ * À lancer depuis l'éditeur : choisir « majColonnesTableur » puis ▶ Exécuter.
+ */
+function majColonnesTableur() {
+  getOrCreateDataSheet_(adminSS_());
+  Logger.log("Colonnes du tableur à jour :\n" + HEADERS.join(" | "));
+}
+
+function promptMajColonnes() {
+  getOrCreateDataSheet_(adminSS_());
+  var ui = SpreadsheetApp.getUi();
+  ui.alert("Tableur à jour", "Colonnes :\n" + HEADERS.join(" | "), ui.ButtonSet.OK);
 }
 
 // ------------------------------------------------------------------
