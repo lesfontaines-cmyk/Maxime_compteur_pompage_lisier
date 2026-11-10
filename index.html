@@ -61,8 +61,18 @@
         <input id="signupNom" class="input" type="text" autocomplete="name" placeholder="Ex. Jean DUPONT" />
         <label class="label" for="signupRaison">Raison sociale <span class="req">*</span></label>
         <input id="signupRaison" class="input" type="text" autocomplete="organization" placeholder="Ex. EARL des Fontaines" />
-        <label class="label" for="signupAdresse">Adresse <span class="req">*</span></label>
-        <input id="signupAdresse" class="input" type="text" autocomplete="street-address" placeholder="N°, rue, code postal, commune" />
+        <label class="label" for="signupAdresse">N° et rue <span class="req">*</span></label>
+        <input id="signupAdresse" class="input" type="text" autocomplete="address-line1" placeholder="Ex. 12 rue des Lilas" />
+        <div class="addr-row">
+          <div class="addr-row__cp">
+            <label class="label" for="signupCp">Code postal <span class="req">*</span></label>
+            <input id="signupCp" class="input" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" placeholder="38270" />
+          </div>
+          <div class="addr-row__ville">
+            <label class="label" for="signupVille">Ville <span class="req">*</span></label>
+            <input id="signupVille" class="input" type="text" autocomplete="address-level2" placeholder="Ex. Beaufort" />
+          </div>
+        </div>
         <p id="signupErr" class="field__error" hidden></p>
         <button id="signupBtn" type="submit" class="btn-primary btn-block">Créer mon accès</button>
       </form>

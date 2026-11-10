@@ -115,13 +115,30 @@ Un menu **« Compteur Lisier »** apparaît directement dans la barre de menus d
 3. Taper l'**adresse email** dans la fenêtre qui s'ouvre, valider.
 4. La personne reçoit **un email** avec un lien. En l'ouvrant **depuis son
    téléphone**, l'application lui propose de **choisir son mot de passe et son
-   identité** (nom, raison sociale, adresse — qui figureront sur ses bordereaux).
+   identité** (nom, raison sociale, n° et rue, code postal, ville — qui
+   figureront sur ses bordereaux).
 
 > La **première** utilisation du menu demande une autorisation Google (envoi
 > d'emails) : accepter.
 
 Le même menu propose aussi **🔑 Réinitialiser un mot de passe…**,
-**🚫 Désactiver un accès…** et **👥 Lister les utilisateurs**.
+**✏️ Modifier un utilisateur (identité, adresse)…**, **🚫 Désactiver un accès…**
+et **👥 Lister les utilisateurs** (les comptes dont il manque le code postal ou
+la ville sont signalés « ⚠️ adresse incomplète »).
+
+### Corriger l'identité ou l'adresse d'un utilisateur
+
+Menu **Compteur Lisier → ✏️ Modifier un utilisateur…** : saisir l'email, puis
+chaque champ s'affiche avec sa **valeur actuelle** (nom, raison sociale,
+n° et rue, code postal, ville). **Laisser vide = conserver** la valeur.
+Le **mot de passe n'est jamais modifiable** ici (utiliser « Réinitialiser »).
+Le téléphone de l'utilisateur récupère les nouvelles informations à la
+prochaine ouverture de l'application (avec réseau), sans se reconnecter.
+
+> Les infos sont aussi visibles/modifiables directement dans la feuille masquée
+> **Utilisateurs** (colonnes *Nom, Raison, Adresse, CodePostal, Ville*), mais
+> le menu est plus sûr (contrôle du code postal, pas de risque de toucher aux
+> colonnes de mot de passe / sessions).
 
 ### Équivalent en ligne de commande (éditeur Apps Script)
 
@@ -132,6 +149,7 @@ en bas du fichier puis **Exécuter**) :
 |---|---|
 | `inviteUser("email")` | Crée un accès (ou ré-invite) et envoie le lien d'inscription. |
 | `resetUserPassword("email")` | Renvoie un lien pour redéfinir le mot de passe. |
+| `modifierUtilisateur("email", { codePostal: "38270", ville: "Beaufort" })` | Modifie l'identité (champs : `nom`, `raison`, `adresse`, `codePostal`, `ville`) — jamais le mot de passe. |
 | `deactivateUser("email")` | Désactive l'accès et **révoque toutes ses sessions**. |
 | `listUsers()` | Liste les comptes et leur statut (dans le journal d'exécution). |
 

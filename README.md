@@ -11,7 +11,8 @@ comptabiliser les volumes de **lisier pompés**.
   côté serveur (voir le guide de déploiement). Les comptes sont créés par
   l'administrateur, qui envoie un lien d'inscription par email.
 - **Identité de l'opérateur rattachée au compte** (nom, raison sociale,
-  adresse), choisie une fois à l'inscription et imprimée sur les bordereaux
+  n° et rue, code postal, ville), choisie une fois à l'inscription, imprimée sur
+  les bordereaux et **modifiable par l'administrateur** (hors mot de passe)
 - Champ de saisie du **volume en litres**
 - Bouton **Enregistrer**
 - **Signature au doigt** (pop-up) à chaque pompage, puis génération d'un

@@ -109,6 +109,11 @@ body {
   color: var(--light);
   margin-bottom: 9px;
 }
+/* Adresse éclatée : code postal + ville sur une même ligne */
+.addr-row { display: flex; gap: 12px; }
+.addr-row__cp { flex: 0 0 34%; min-width: 0; }
+.addr-row__ville { flex: 1 1 auto; min-width: 0; }
+.addr-row .input { width: 100%; }
 .field__error { color: var(--red); font-size: 13px; margin-top: 7px; letter-spacing: .3px; }
 
 .input, .select {

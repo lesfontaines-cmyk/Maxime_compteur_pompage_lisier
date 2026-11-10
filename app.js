@@ -55,7 +55,13 @@
   // Identité de l'opérateur : rattachée au COMPTE (plus de config par appareil).
   function opNom() { var p = getProfile(); return p ? String(p.nom || "").trim() : ""; }
   function opRaison() { var p = getProfile(); return p ? String(p.raison || "").trim() : ""; }
-  function opAdresse() { var p = getProfile(); return p ? String(p.adresse || "").trim() : ""; }
+  // Adresse complète sur une ligne : « 12 rue des Lilas, 38270 Beaufort ».
+  function formatAdresse(p) {
+    if (!p) return "";
+    var cpVille = [String(p.codePostal || "").trim(), String(p.ville || "").trim()].filter(Boolean).join(" ");
+    return [String(p.adresse || "").trim(), cpVille].filter(Boolean).join(", ");
+  }
+  function opAdresse() { return formatAdresse(getProfile()); }
   function opEmail() { var p = getProfile(); return p ? String(p.email || "").trim() : ""; }
 
   // Appel API JSON au script (réponse lisible en CORS). Rejette si réseau/serveur KO.
@@ -281,6 +287,8 @@
     el.signupNom = $("#signupNom");
     el.signupRaison = $("#signupRaison");
     el.signupAdresse = $("#signupAdresse");
+    el.signupCp = $("#signupCp");
+    el.signupVille = $("#signupVille");
     el.signupErr = $("#signupErr");
     el.signupBtn = $("#signupBtn");
     el.authLoading = $("#authLoading");
@@ -628,7 +636,7 @@
     if (el.accEmail) el.accEmail.textContent = p.email || "—";
     if (el.accNom) el.accNom.textContent = p.nom || "—";
     if (el.accRaison) el.accRaison.textContent = p.raison || "—";
-    if (el.accAdresse) el.accAdresse.textContent = p.adresse || "—";
+    if (el.accAdresse) el.accAdresse.textContent = formatAdresse(p) || "—";
     el.settings.hidden = false;
   }
   function closeSettings() { el.settings.hidden = true; }
@@ -719,13 +727,18 @@
     var nom = (el.signupNom.value || "").trim();
     var raison = (el.signupRaison.value || "").trim();
     var adresse = (el.signupAdresse.value || "").trim();
+    var codePostal = (el.signupCp.value || "").replace(/\s+/g, "");
+    var ville = (el.signupVille.value || "").trim();
     if (pw.length < 8) { showAuth("signup", { error: "Le mot de passe doit contenir au moins 8 caractères." }); return; }
     if (pw !== pw2) { showAuth("signup", { error: "Les deux mots de passe ne correspondent pas." }); return; }
-    if (!nom || !raison || !adresse) { showAuth("signup", { error: "Renseignez votre nom, votre raison sociale et votre adresse." }); return; }
+    if (!nom || !raison) { showAuth("signup", { error: "Renseignez votre nom et votre raison sociale." }); return; }
+    if (!adresse) { showAuth("signup", { error: "Renseignez le numéro et le nom de la rue." }); return; }
+    if (!/^[0-9]{5}$/.test(codePostal)) { showAuth("signup", { error: "Le code postal doit comporter 5 chiffres." }); return; }
+    if (!ville) { showAuth("signup", { error: "Renseignez la ville." }); return; }
     if (!navigator.onLine) { showAuth("signup", { error: "Connexion internet requise pour créer votre accès." }); return; }
     el.signupBtn.disabled = true;
     el.signupErr.hidden = true;
-    apiPost({ action: "finalizeSignup", token: _signupToken, password: pw, nom: nom, raison: raison, adresse: adresse }).then(function (j) {
+    apiPost({ action: "finalizeSignup", token: _signupToken, password: pw, nom: nom, raison: raison, adresse: adresse, codePostal: codePostal, ville: ville }).then(function (j) {
       el.signupBtn.disabled = false;
       if (j && j.ok && j.token) {
         setAuth(j.token, j.profile);
@@ -736,6 +749,8 @@
         var msg = (j && j.error === "expired-token") ? "Ce lien a expiré. Demandez-en un nouveau à l'administrateur."
           : (j && j.error === "bad-token") ? "Ce lien est invalide. Demandez-en un nouveau."
           : (j && j.error === "weak-password") ? "Le mot de passe doit contenir au moins 8 caractères."
+          : (j && j.error === "bad-postcode") ? "Le code postal doit comporter 5 chiffres."
+          : (j && j.error === "missing-identity") ? "Renseignez tous les champs obligatoires (nom, raison sociale, rue, code postal, ville)."
           : "Impossible de créer l'accès. Réessayez.";
         showAuth("signup", { error: msg });
       }

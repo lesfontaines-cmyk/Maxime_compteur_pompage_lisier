@@ -18,6 +18,10 @@
  * depuis l'éditeur Apps Script. L'utilisateur reçoit un email avec un lien
  * pour choisir son mot de passe et son identité depuis l'application.
  *
+ * Modification de l'identité d'un utilisateur (nom, raison sociale, adresse,
+ * code postal, ville — jamais le mot de passe) : menu « Compteur Lisier »
+ * → « Modifier un utilisateur… », ou fonction modifierUtilisateur(email, {...}).
+ *
  * Voir DEPLOIEMENT.md pour la mise en place pas à pas.
  */
 
@@ -34,8 +38,11 @@ var DATA_SHEET = "Pompages";       // feuille des données visibles
 var ID_SHEET = "_ids";             // feuille technique masquée (anti-doublon)
 var USERS_SHEET = "Utilisateurs";  // feuille technique masquée (comptes)
 var HEADERS = ["Date", "Heure", "Entreprise", "Adresse", "Intervenant", "Volume (L)", "Destination", "Bordereau"];
+// « Adresse » = n° + rue. « CodePostal » et « Ville » ont été ajoutées EN FIN
+// de ligne pour ne pas décaler les comptes existants (migration automatique).
 var USERS_HEADERS = ["Email", "Statut", "Sel", "Hash", "JetonHash", "JetonExp",
-                     "Nom", "Raison", "Adresse", "Sessions", "CreeLe", "MajLe"];
+                     "Nom", "Raison", "Adresse", "Sessions", "CreeLe", "MajLe",
+                     "CodePostal", "Ville"];
 
 // Dossier Drive où sont archivés les bordereaux PDF signés.
 var FOLDER_NAME = "Bordereaux pompage lisier"; // utilisé seulement si FOLDER_ID est vide
@@ -105,9 +112,12 @@ function handleFinalize_(ss, data) {
   var nom = String(data.nom || "").trim();
   var raison = String(data.raison || "").trim();
   var adresse = String(data.adresse || "").trim();
+  var codePostal = String(data.codePostal || "").trim();
+  var ville = String(data.ville || "").trim();
   if (!token) return json({ ok: false, error: "invalid" });
   if (pw.length < MIN_PASSWORD) return json({ ok: false, error: "weak-password" });
-  if (!nom || !raison || !adresse) return json({ ok: false, error: "missing-identity" });
+  if (!nom || !raison || !adresse || !ville) return json({ ok: false, error: "missing-identity" });
+  if (!isCodePostal_(codePostal)) return json({ ok: false, error: "bad-postcode" });
 
   var sheet = usersSheet_(ss);
   var u = userRowByJeton_(sheet, sha256Hex_(token));
@@ -121,6 +131,8 @@ function handleFinalize_(ss, data) {
   setField_(u.values, "Nom", nom);
   setField_(u.values, "Raison", raison);
   setField_(u.values, "Adresse", adresse);
+  setField_(u.values, "CodePostal", codePostal);
+  setField_(u.values, "Ville", ville);
   setField_(u.values, "Statut", "actif");
   setField_(u.values, "JetonHash", "");   // le lien d'inscription est consommé
   setField_(u.values, "JetonExp", "");
@@ -156,7 +168,7 @@ function handlePump_(ss, data) {
 
   // L'identité vient du COMPTE, jamais du client (anti-usurpation).
   var prof = profileFromRow_(auth.values);
-  var personne = prof.nom, entreprise = prof.raison, adresse = prof.adresse;
+  var personne = prof.nom, entreprise = prof.raison, adresse = formatAdresse_(prof);
   var volume = Number(data.volumeL);
   var destination = String(data.destination || "").trim();
   var id = String(data.id || "").trim();
@@ -267,13 +279,51 @@ function deactivateUser(email) {
   Logger.log("Accès désactivé : " + email);
 }
 
+/**
+ * Modifie l'identité d'un utilisateur (JAMAIS le mot de passe ni le statut).
+ * Seuls les champs fournis sont modifiés. Exemple depuis l'éditeur :
+ *   modifierUtilisateur("jean@exemple.fr", { codePostal: "38270", ville: "Beaufort" })
+ * Champs possibles : nom, raison, adresse (n° + rue), codePostal, ville.
+ * Le téléphone de l'utilisateur récupère les nouvelles infos à la prochaine
+ * ouverture de l'application (avec réseau), sans reconnexion.
+ */
+function modifierUtilisateur(email, champs) {
+  email = lc_(email);
+  champs = champs || {};
+  var sheet = usersSheet_(adminSS_());
+  var u = userRowByEmail_(sheet, email);
+  if (!u) throw new Error("Utilisateur introuvable : " + email);
+  var changed = [];
+  EDITABLE_FIELDS.forEach(function (f) {
+    if (champs[f.key] === undefined || champs[f.key] === null) return;
+    var v = String(champs[f.key]).trim();
+    if (!v) throw new Error("« " + f.label + " » ne peut pas être vide.");
+    if (f.key === "codePostal" && !isCodePostal_(v)) throw new Error("Code postal invalide (5 chiffres attendus) : " + v);
+    if (String(getField_(u.values, f.col) || "") !== v) { setField_(u.values, f.col, v); changed.push(f.label); }
+  });
+  if (!changed.length) { Logger.log("Aucune modification pour " + email); return profileFromRow_(u.values); }
+  setField_(u.values, "MajLe", new Date());
+  writeRow_(sheet, u.row, u.values);
+  Logger.log("Utilisateur " + email + " modifié : " + changed.join(", "));
+  return profileFromRow_(u.values);
+}
+
+// Champs d'identité modifiables par l'administrateur (hors mot de passe).
+var EDITABLE_FIELDS = [
+  { key: "nom", col: "Nom", label: "Nom de l'opérateur" },
+  { key: "raison", col: "Raison", label: "Raison sociale" },
+  { key: "adresse", col: "Adresse", label: "Adresse (n° et rue)" },
+  { key: "codePostal", col: "CodePostal", label: "Code postal" },
+  { key: "ville", col: "Ville", label: "Ville" }
+];
+
 /** Liste les comptes (dans le journal d'exécution). */
 function listUsers() {
   var sheet = usersSheet_(adminSS_());
   var last = sheet.getLastRow();
   if (last < 2) { Logger.log("Aucun utilisateur."); return; }
   var all = sheet.getRange(2, 1, last - 1, USERS_HEADERS.length).getValues();
-  all.forEach(function (v) { Logger.log(getField_(v, "Email") + " — " + getField_(v, "Statut")); });
+  all.forEach(function (v) { Logger.log(userLine_(v)); });
 }
 
 function adminSS_() {
@@ -289,6 +339,7 @@ function onOpen() {
     .createMenu("Compteur Lisier")
     .addItem("➕ Inviter un utilisateur…", "promptInviteUser")
     .addItem("🔑 Réinitialiser un mot de passe…", "promptResetPassword")
+    .addItem("✏️ Modifier un utilisateur (identité, adresse)…", "promptModifierUtilisateur")
     .addItem("🚫 Désactiver un accès…", "promptDeactivateUser")
     .addSeparator()
     .addItem("👥 Lister les utilisateurs", "menuListUsers")
@@ -338,13 +389,49 @@ function promptDeactivateUser() {
   }
 }
 
+/**
+ * Assistant de modification : demande l'email, puis chaque champ en affichant
+ * sa valeur actuelle. Laisser vide = conserver la valeur actuelle.
+ * Le mot de passe n'est jamais modifiable ici (voir « Réinitialiser »).
+ */
+function promptModifierUtilisateur() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt("Modifier un utilisateur",
+    "Adresse email de l'utilisateur à modifier :", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var email = lc_(res.getResponseText());
+  try {
+    var u = userRowByEmail_(usersSheet_(adminSS_()), email);
+    if (!u) throw new Error("Utilisateur introuvable : " + email);
+    var champs = {};
+    for (var i = 0; i < EDITABLE_FIELDS.length; i++) {
+      var f = EDITABLE_FIELDS[i];
+      var cur = String(getField_(u.values, f.col) || "");
+      var r = ui.prompt("Modifier " + email + " (" + (i + 1) + "/" + EDITABLE_FIELDS.length + ")",
+        f.label + "\nValeur actuelle : " + (cur || "(vide)") +
+        "\n\nNouvelle valeur (laisser vide pour conserver) :", ui.ButtonSet.OK_CANCEL);
+      if (r.getSelectedButton() !== ui.Button.OK) { ui.alert("Modification annulée", "Aucun changement enregistré.", ui.ButtonSet.OK); return; }
+      var v = String(r.getResponseText() || "").trim();
+      if (v) champs[f.key] = v;
+    }
+    var p = modifierUtilisateur(email, champs);
+    ui.alert("Utilisateur à jour",
+      email + "\n\nNom : " + p.nom + "\nRaison sociale : " + p.raison +
+      "\nAdresse : " + formatAdresse_(p) +
+      "\n\nLes nouveaux bordereaux utiliseront ces informations dès la prochaine ouverture de l'application.",
+      ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("Erreur", String(e), ui.ButtonSet.OK);
+  }
+}
+
 function menuListUsers() {
   var ui = SpreadsheetApp.getUi();
   var sheet = usersSheet_(adminSS_());
   var last = sheet.getLastRow();
   if (last < 2) { ui.alert("Utilisateurs", "Aucun utilisateur pour l'instant.", ui.ButtonSet.OK); return; }
   var all = sheet.getRange(2, 1, last - 1, USERS_HEADERS.length).getValues();
-  var lines = all.map(function (v) { return "• " + getField_(v, "Email") + " — " + getField_(v, "Statut"); });
+  var lines = all.map(function (v) { return "• " + userLine_(v); });
   ui.alert("Utilisateurs (" + lines.length + ")", lines.join("\n"), ui.ButtonSet.OK);
 }
 
@@ -423,8 +510,19 @@ function usersSheet_(ss) {
     s.getRange(1, 1, 1, USERS_HEADERS.length).setValues([USERS_HEADERS]).setFontWeight("bold");
     s.setFrozenRows(1);
     s.hideSheet();
+  } else {
+    migrateUsersHeaders_(s);
   }
   return s;
+}
+/** Ajoute en fin de ligne d'en-tête les colonnes manquantes (ex. CodePostal, Ville). */
+function migrateUsersHeaders_(s) {
+  var lastCol = s.getLastColumn();
+  if (lastCol >= USERS_HEADERS.length) return;
+  var header = s.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0];
+  for (var i = lastCol; i < USERS_HEADERS.length; i++) {
+    if (header.indexOf(USERS_HEADERS[i]) === -1) s.getRange(1, i + 1).setValue(USERS_HEADERS[i]).setFontWeight("bold");
+  }
 }
 function emptyUser_() { var a = []; for (var i = 0; i < USERS_HEADERS.length; i++) a.push(""); return a; }
 function colIdx_(name) { return USERS_HEADERS.indexOf(name); }
@@ -436,8 +534,21 @@ function profileFromRow_(vals) {
     email: getField_(vals, "Email"),
     nom: getField_(vals, "Nom"),
     raison: getField_(vals, "Raison"),
-    adresse: getField_(vals, "Adresse")
+    adresse: String(getField_(vals, "Adresse") || ""),
+    codePostal: String(getField_(vals, "CodePostal") || ""),
+    ville: String(getField_(vals, "Ville") || "")
   };
+}
+/** Adresse complète sur une ligne : « 12 rue des Lilas, 38270 Beaufort ». */
+function formatAdresse_(p) {
+  var cpVille = [String(p.codePostal || "").trim(), String(p.ville || "").trim()].filter(String).join(" ");
+  return [String(p.adresse || "").trim(), cpVille].filter(String).join(", ");
+}
+function isCodePostal_(v) { return /^[0-9]{5}$/.test(String(v || "").trim()); }
+function userLine_(v) {
+  var p = profileFromRow_(v);
+  var incomplet = (getField_(v, "Statut") === "actif" && (!p.codePostal || !p.ville)) ? "  ⚠️ adresse incomplète" : "";
+  return p.email + " — " + getField_(v, "Statut") + (p.nom ? " — " + p.nom : "") + incomplet;
 }
 
 function userRowByEmail_(sheet, email) {
